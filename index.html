@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>palette — paint mixing companion</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --linen:#EDE7DA;
+  --paper:#FAF7F0;
+  --ink:#2A241F;
+  --ink-soft:#7A7065;
+  --ink-faint:#A79C8E;
+  --cadmium:#C1502E;
+  --cadmium-dark:#9E3F22;
+  --ultramarine:#2E3A6B;
+  --sage:#6E7B57;
+  --line:#DFD6C4;
+  --line-soft:#EAE2D2;
+  --radius-lg:18px;
+  --radius-md:12px;
+  --radius-sm:8px;
+  --shadow:0 1px 2px rgba(42,36,31,0.06), 0 8px 24px -12px rgba(42,36,31,0.18);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--linen);
+  color:var(--ink);
+  font-family:'Inter',sans-serif;
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+}
+#app{max-width:1180px;margin:0 auto;padding:0 20px 60px;}
+.hidden{display:none !important;}
+
+::selection{background:var(--cadmium);color:#fff;}
+button{font-family:inherit;}
+button:focus-visible,input:focus-visible,select:focus-visible{
+  outline:2px solid var(--cadmium);
+  outline-offset:2px;
+}
+
+/* ---------- login screen ---------- */
+.login-screen{
+  min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.login-card{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-lg);
+  padding:42px 34px;max-width:380px;width:100%;text-align:center;box-shadow:var(--shadow);
+}
+.login-brand-dot{
+  width:34px;height:34px;border-radius:50%;margin:0 auto 16px;
+  background:radial-gradient(circle at 32% 30%, #F0DCC6, var(--cadmium) 45%, var(--ultramarine) 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,0.08);
+}
+.login-title{font-family:'Fraunces',serif;font-size:23px;font-weight:600;margin:0 0 8px;letter-spacing:-0.01em;}
+.login-sub{color:var(--ink-soft);font-size:13.5px;line-height:1.55;margin:0 0 28px;}
+.google-btn{
+  display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  padding:12px 16px;border-radius:999px;border:1px solid var(--line);background:#fff;color:var(--ink);
+  font-size:14px;font-weight:600;cursor:pointer;transition:border-color .15s ease, box-shadow .15s ease;
+}
+.google-btn:hover{border-color:var(--ink-faint);box-shadow:0 2px 10px rgba(0,0,0,0.07);}
+.config-warning{
+  margin-top:18px;font-size:12px;color:var(--cadmium-dark);background:#FBF0EA;
+  border:1px solid #F0D9CB;border-radius:var(--radius-sm);padding:11px 13px;text-align:left;line-height:1.55;
+}
+.config-warning code{font-family:'JetBrains Mono',monospace;font-size:11px;}
+
+/* ---------- header ---------- */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:26px 0 18px;
+  flex-wrap:wrap;gap:14px;
+}
+.brand{
+  display:flex;align-items:center;gap:10px;
+  font-family:'Fraunces',serif;
+  font-size:22px;font-weight:600;letter-spacing:-0.01em;
+}
+.brand-dot{
+  width:22px;height:22px;border-radius:50%;
+  background:radial-gradient(circle at 32% 30%, #F0DCC6, var(--cadmium) 45%, var(--ultramarine) 100%);
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,0.08);
+  flex-shrink:0;
+}
+.tabs{
+  display:flex;gap:2px;background:var(--paper);
+  border:1px solid var(--line);border-radius:999px;padding:3px;
+}
+.tab{
+  border:none;background:transparent;color:var(--ink-soft);
+  padding:8px 16px;border-radius:999px;font-size:13.5px;font-weight:600;
+  cursor:pointer;transition:background .15s ease,color .15s ease;
+  letter-spacing:.01em;
+}
+.tab:hover{color:var(--ink);}
+.tab.active{background:var(--ink);color:var(--paper);}
+
+.account{display:flex;align-items:center;gap:10px;}
+.account-email{font-size:12.5px;color:var(--ink-soft);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+.tab-panel{display:none;}
+.tab-panel.active{display:block;animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+@media (prefers-reduced-motion: reduce){
+  .tab-panel.active{animation:none;}
+}
+
+h2{font-family:'Fraunces',serif;font-weight:600;font-size:20px;margin:0 0 4px;letter-spacing:-0.01em;}
+.hint{color:var(--ink-soft);font-size:13.5px;margin:0 0 20px;}
+
+/* ---------- mix tab layout ---------- */
+.mix-grid{
+  display:grid;grid-template-columns:1.35fr 1fr;gap:22px;align-items:start;
+}
+@media (max-width:880px){
+  .mix-grid{grid-template-columns:1fr;}
+}
+
+.dropzone{
+  border:1.5px dashed var(--line);border-radius:var(--radius-lg);
+  background:var(--paper);
+  min-height:340px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;cursor:pointer;text-align:center;padding:30px;
+  transition:border-color .15s ease, background .15s ease;
+}
+.dropzone:hover,.dropzone.drag{border-color:var(--cadmium);background:#FBF3EC;}
+.dropzone-icon{
+  width:46px;height:46px;border-radius:50%;
+  border:1.5px solid var(--line);
+  display:flex;align-items:center;justify-content:center;
+  color:var(--cadmium);font-size:20px;
+}
+.dropzone-title{font-family:'Fraunces',serif;font-size:17px;font-weight:600;}
+.dropzone-sub{color:var(--ink-soft);font-size:13px;max-width:260px;}
+
+.canvas-wrap{position:relative;}
+
+#imgCanvas{
+  width:100%;height:auto;display:block;border-radius:var(--radius-lg);
+  box-shadow:var(--shadow);touch-action:none;cursor:crosshair;
+  background:#fff;
+}
+.change-photo-row{display:flex;justify-content:space-between;align-items:center;margin-top:10px;}
+.canvas-caption{font-size:12.5px;color:var(--ink-soft);}
+
+.loupe{
+  position:absolute;pointer-events:none;
+  width:112px;height:112px;border-radius:50%;
+  border:3px solid var(--paper);
+  box-shadow:0 4px 18px rgba(0,0,0,0.28), 0 0 0 1px rgba(0,0,0,0.08);
+  overflow:hidden;transform:translate(-50%,-135%);z-index:5;
+}
+.loupe canvas{width:100%;height:100%;image-rendering:pixelated;display:block;}
+.loupe-cross{
+  position:absolute;top:50%;left:50%;width:12px;height:12px;
+  transform:translate(-50%,-50%);
+  border:1.5px solid rgba(255,255,255,0.9);
+  box-shadow:0 0 0 1px rgba(0,0,0,0.4);
+  border-radius:2px;pointer-events:none;
+}
+
+.ghost-btn{
+  background:transparent;border:1px solid var(--line);color:var(--ink);
+  padding:7px 13px;border-radius:999px;font-size:12.5px;font-weight:600;
+  cursor:pointer;transition:border-color .15s ease, background .15s ease;
+}
+.ghost-btn:hover{border-color:var(--ink);}
+.ghost-btn.small{padding:6px 12px;font-size:12px;}
+
+.primary-btn{
+  background:var(--cadmium);color:#fff;border:none;
+  padding:11px 18px;border-radius:999px;font-size:13.5px;font-weight:700;
+  cursor:pointer;width:100%;transition:background .15s ease, transform .1s ease;
+  letter-spacing:.01em;
+}
+.primary-btn:hover{background:var(--cadmium-dark);}
+.primary-btn:active{transform:scale(0.98);}
+.primary-btn.small{width:auto;padding:8px 15px;font-size:12.5px;}
+.primary-btn:disabled{background:var(--ink-faint);cursor:not-allowed;}
+
+/* ---------- well pane ---------- */
+.well-pane{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-lg);
+  padding:22px;position:sticky;top:20px;
+}
+.well-title{margin-bottom:2px;}
+.picked-empty{
+  color:var(--ink-soft);font-size:13.5px;line-height:1.5;
+  padding:30px 4px;text-align:left;
+}
+.picked-swatch-row{display:flex;align-items:center;gap:14px;margin:14px 0 20px;}
+.picked-swatch{
+  width:58px;height:58px;border-radius:50%;flex-shrink:0;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,0.08), var(--shadow);
+}
+.picked-hex{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;letter-spacing:.02em;}
+.picked-label{font-size:12px;color:var(--ink-soft);margin-top:2px;text-transform:uppercase;letter-spacing:.06em;}
+
+.recipe-stack{
+  display:flex;width:100%;height:30px;border-radius:8px;overflow:hidden;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,0.08);margin-bottom:14px;
+}
+.recipe-seg{height:100%;transition:width .35s cubic-bezier(.4,0,.2,1);}
+@media (prefers-reduced-motion: reduce){.recipe-seg{transition:none;}}
+
+.recipe-list{list-style:none;margin:0 0 22px;padding:0;display:flex;flex-direction:column;gap:8px;}
+.recipe-list li{
+  display:flex;align-items:center;gap:9px;font-size:13.5px;
+}
+.recipe-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.12);}
+.recipe-name{flex:1;}
+.recipe-pct{font-family:'JetBrains Mono',monospace;font-weight:600;color:var(--ink-soft);}
+
+.field-label{
+  display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);
+  text-transform:uppercase;letter-spacing:.07em;margin:14px 0 6px;
+}
+.field-label:first-of-type{margin-top:0;}
+input[type=text],select{
+  width:100%;border:1px solid var(--line);border-radius:var(--radius-sm);
+  padding:10px 12px;font-size:14px;font-family:'Inter',sans-serif;
+  background:#fff;color:var(--ink);
+}
+select{appearance:none;background-image:linear-gradient(45deg, transparent 50%, var(--ink-soft) 50%), linear-gradient(135deg, var(--ink-soft) 50%, transparent 50%);background-position:calc(100% - 18px) center, calc(100% - 13px) center;background-size:5px 5px, 5px 5px;background-repeat:no-repeat;}
+.new-palette-row{margin-top:8px;}
+.save-form .primary-btn{margin-top:16px;}
+
+/* ---------- palettes tab ---------- */
+.palettes-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;flex-wrap:wrap;gap:10px;}
+.new-palette-form{display:flex;gap:8px;margin:14px 0;max-width:360px;}
+.new-palette-form input{flex:1;}
+
+.empty-state{
+  border:1px dashed var(--line);border-radius:var(--radius-lg);
+  padding:40px 20px;text-align:center;color:var(--ink-soft);font-size:13.5px;
+  margin-top:16px;
+}
+
+.palettes-list{display:flex;flex-direction:column;gap:14px;margin-top:16px;}
+.palette-card{
+  background:var(--paper);border:1px solid var(--line);border-radius:var(--radius-lg);
+  padding:16px 18px;
+}
+.palette-card-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer;gap:10px;}
+.palette-card-title{display:flex;align-items:center;gap:10px;min-width:0;}
+.palette-name{font-family:'Fraunces',serif;font-weight:600;font-size:16.5px;}
+.palette-count{font-size:12px;color:var(--ink-soft);font-family:'JetBrains Mono',monospace;}
+.palette-dots{display:flex;margin-left:2px;}
+.palette-dots span{
+  width:16px;height:16px;border-radius:50%;margin-left:-5px;
+  box-shadow:0 0 0 2px var(--paper);
+}
+.palette-card-actions{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.icon-btn{
+  background:transparent;border:none;color:var(--ink-faint);cursor:pointer;
+  font-size:15px;padding:4px 6px;border-radius:6px;line-height:1;
+}
+.icon-btn:hover{color:var(--cadmium);background:rgba(193,80,46,0.08);}
+.chevron{transition:transform .15s ease;color:var(--ink-soft);font-size:12px;}
+.palette-card.open .chevron{transform:rotate(90deg);}
+
+.palette-colors{display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--line-soft);flex-direction:column;gap:12px;}
+.palette-card.open .palette-colors{display:flex;}
+.color-row{display:flex;gap:12px;align-items:flex-start;}
+.color-row .swatch{
+  width:38px;height:38px;border-radius:50%;flex-shrink:0;margin-top:2px;
+  box-shadow:inset 0 0 0 1px rgba(0,0,0,0.08);
+}
+.color-row-main{flex:1;min-width:0;}
+.color-row-top{display:flex;align-items:center;gap:8px;justify-content:space-between;}
+.color-name-input{border:none;background:transparent;font-weight:600;font-size:14px;font-family:inherit;padding:1px 0;border-bottom:1px dashed transparent;width:100%;color:var(--ink);}
+.color-name-input:hover,.color-name-input:focus{border-bottom-color:var(--line);outline:none;}
+.color-match{font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--sage);white-space:nowrap;}
+.color-recipe{font-size:12.5px;color:var(--ink-soft);margin-top:3px;line-height:1.5;}
+.color-recipe b{color:var(--ink);font-weight:600;}
+
+/* ---------- paints tab ---------- */
+.paints-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;
+}
+.paint-chip{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:16px 18px;
+  min-height:64px;
+  border:2px solid #A8D8F0;
+  border-radius:14px;
+  background:#20211F;
+  
+}
+.paint-chip:hover{border-color:var(--ink-faint);}
+.paint-chip.checked{border-color:var(--ink);background:#22221F;}
+.paint-chip input{accent-color:var(--cadmium);width:15px;height:15px;flex-shrink:0;}
+.paint-swatch{width:20px;height:20px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);}
+.paint-name{font-size:13px;font-weight:700;}
+.paints-note{font-size:12px;color:var(--cadmium-dark);margin-top:10px;min-height:16px;}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(12px);
+  background:var(--ink);color:var(--paper);padding:11px 20px;border-radius:999px;
+  font-size:13px;font-weight:600;opacity:0;pointer-events:none;
+  transition:opacity .2s ease, transform .2s ease;box-shadow:var(--shadow);z-index:50;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+
+/* ===== palette dark UI refresh ===== */
+:root{
+  --linen:#171816;
+  --paper:#22221F;
+  --ink:#F4F0E9;
+  --ink-soft:#B7B1A8;
+  --cadmium:#A8D8F0;
+  --cadmium-dark:#7FC4E8;
+  --line:#363633;
+  --line-soft:#2B2B29;
+  --shadow:0 18px 50px rgba(0,0,0,.28);
+}
+html,body{background:#171816;color:var(--ink);font-family:'Inter',sans-serif;}
+body{background:radial-gradient(circle at 50% 10%,#1d1e1c 0,#171816 42%,#151614 100%);}
+#app{max-width:1240px;padding:0 24px 70px;}
+::selection{background:#A8D8F0;color:#151614;}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #A8D8F0;}
+
+.login-screen{position:relative;overflow:hidden;background:radial-gradient(circle at center,#1d1e1c 0,#171816 58%,#141513 100%);}
+.login-card{background:transparent;border:none;box-shadow:none;max-width:520px;padding:48px 30px;text-align:center;position:relative;z-index:2;}
+.login-brand{display:flex;align-items:center;justify-content:center;gap:12px;font-size:24px;font-weight:800;margin-bottom:42px;letter-spacing:-.03em;}
+.login-brand-dot,.brand-dot{background:#A8D8F0;box-shadow:none;}
+.login-brand-dot{width:28px;height:28px;margin:0;}
+.login-title{font-family:'Inter',sans-serif;font-size:52px;line-height:.98;font-weight:800;letter-spacing:-.055em;margin:0 0 22px;}
+.login-sub{font-size:16px;line-height:1.45;color:#C5C0B7;margin:0 0 34px;}
+.google-btn{width:auto;min-width:252px;margin:0 auto;padding:13px 24px;border:none;background:#F7F3EC;color:#171816;font-size:15px;border-radius:999px;box-shadow:0 8px 24px rgba(0,0,0,.22);}
+.google-btn:hover{border:none;box-shadow:0 10px 30px rgba(0,0,0,.3);transform:translateY(-1px);}
+.login-legal{font-size:10px;color:#807D77;margin-top:82px;}
+.config-warning{max-width:380px;margin:20px auto 0;color:#F6B8A5;background:#2B1F1B;border-color:#513129;}
+.float-dot{position:absolute;border-radius:50%;z-index:1;opacity:.98;box-shadow:0 0 0 1px rgba(255,255,255,.04) inset;}
+.d1{width:30px;height:30px;background:#A8D8F0;left:9%;top:12%;}.d2{width:24px;height:24px;background:#65CBA8;right:11%;top:17%;}.d3{width:15px;height:15px;background:#EB84AB;left:5%;top:34%;}.d4{width:18px;height:18px;background:#FFA62B;left:10%;bottom:15%;}.d5{width:18px;height:18px;background:#B9ADF7;right:17%;top:56%;}.d6{width:13px;height:13px;background:#72B4F2;right:8%;bottom:25%;}.d7{width:14px;height:14px;background:#EB84AB;right:19%;bottom:12%;}
+
+.topbar{padding:22px 0 18px;border-bottom:1px solid #2B2B29;position:sticky;top:0;background:rgba(23,24,22,.9);backdrop-filter:blur(14px);z-index:10;}
+.brand{font-family:'Inter',sans-serif;font-weight:800;font-size:22px;letter-spacing:-.035em;}
+.brand-dot{width:20px;height:20px;}
+.tabs{background:#151614;border-color:#30302D;padding:3px;}
+.tab{color:#D0CBC3;padding:8px 18px;font-size:13px;}
+.tab.active{background:#A8D8F0;color:#171816;}
+.account-email{color:#D0CBC3;}
+.ghost-btn{color:#E4DED5;border-color:#3A3A36;}.ghost-btn:hover{border-color:#69645F;background:#20211F;}
+
+h2,.dropzone-title,.palette-name{font-family:'Inter',sans-serif;letter-spacing:-.025em;}
+h2{font-size:26px;font-weight:600;}.hint{color:#97938C;}
+.mix-grid{grid-template-columns:1.08fr .92fr;gap:0;margin-top:0;border-top:0;}
+.image-pane{padding:22px 22px 0 0;border-right:1px solid #2D2D2A;}
+.well-pane{background:transparent;border:none;border-radius:0;padding:22px 0 0 22px;position:static;}
+.step-heading{display:flex;flex-direction:column;gap:4px;margin-bottom:14px;}.step-heading strong{font-size:14px;font-weight:600;}.step-heading span{font-size:12px;color:#99958E;}
+.dropzone{background:#20211F;border-color:#3A3A36;min-height:380px;}.dropzone:hover,.dropzone.drag{background:#24231F;border-color:#A8D8F0;}.dropzone-icon{color:#A8D8F0;border-color:#44413C;}
+#imgCanvas{border-radius:10px;box-shadow:0 18px 40px rgba(0,0,0,.28);}
+.canvas-caption{color:#8D8982;}.change-photo-row{margin-top:12px;}
+.picked-empty{color:#95918A;padding:42px 0;}
+.picked-result{background:transparent;}
+.picked-swatch-row{background:#232320;border:1px solid #30302D;border-radius:14px;padding:14px;margin:0 0 20px;}
+.picked-swatch{width:54px;height:54px;box-shadow:none;}
+.picked-hex{color:#F6F2EB;font-size:14px;}.picked-label{color:#99958E;}
+.recipe-heading{font-size:14px;font-weight:600;margin:18px 0 14px;}
+.recipe-stack{height:18px;border-radius:999px;background:#2C2C29;box-shadow:none;margin-bottom:15px;}
+.recipe-list{gap:10px;margin-bottom:24px;}.recipe-list li{font-size:13px;}.recipe-pct{color:#D8D2C9;}
+.field-label{color:#8F8B84;}.save-form{padding-top:4px;}
+input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
+.primary-btn{background:#A8D8F0;color:#171816;}.primary-btn:hover{background:#BDE5F7;}.primary-btn:disabled{background:#5D5A55;color:#AAA59D;}
+
+.palette-card{background:#20211F;border-color:#30302D;box-shadow:none;}.palette-card:hover{border-color:#41413D;}.palette-name{font-weight:600;}.palette-dots span{box-shadow:0 0 0 2px #20211F;}.palette-colors{border-color:#30302D;}.color-name-input{color:#F4F0E9;}.color-match{color:#7BD3B3;}.color-recipe{color:#A7A29A;}.color-recipe b{color:#F0ECE5;}
+.empty-state{border-color:#343431;color:#88847D;}.new-palette-form input{background:#1C1D1B;}
+.paints-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit, minmax(280px, 1fr));
+  gap:16px;
+}
+.toast{background:#F4F0E9;color:#171816;}
+
+/* palette library: card grid + detail view */
+.palettes-header{margin:30px 0 18px;}
+.palettes-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:18px;}
+.palette-card{padding:16px;border-radius:14px;cursor:pointer;transition:transform .15s ease,border-color .15s ease,background .15s ease;}
+.palette-card:hover{transform:translateY(-2px);background:#232421;}
+.palette-card-head{align-items:flex-start;}
+.palette-card-title{display:block;}
+.palette-name{display:block;font-size:15px;margin-bottom:5px;}
+.palette-count{display:block;font-size:11px;color:#8F8B84;}
+.palette-preview{display:flex;height:52px;border-radius:8px;overflow:hidden;margin-top:16px;background:#2C2C29;}
+.palette-preview span{flex:1;min-width:0;}
+.palette-card-actions{margin-left:auto;}
+.palette-card .chevron,.palette-card .palette-dots,.palette-card .palette-colors{display:none!important;}
+.palette-detail{margin-top:28px;}
+.palette-detail.hidden{display:none!important;}
+.palette-detail-top{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:20px;}
+.palette-detail-title-row{display:flex;align-items:center;gap:12px;}
+.palette-back{border:0;background:transparent;color:#D9D4CC;font-size:22px;padding:2px 4px;cursor:pointer;}
+.palette-detail-title{font-size:25px;font-weight:600;letter-spacing:-.035em;margin:0;}
+.palette-detail-count{font-size:12px;color:#8F8B84;margin-top:4px;}
+.palette-detail-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:14px;}
+.detail-color-card{background:#20211F;border:1px solid #30302D;border-radius:10px;overflow:hidden;position:relative;}
+.detail-color-swatch{height:108px;width:100%;}
+.detail-color-info{padding:10px 11px 11px;}
+.detail-color-hex{font-family:'JetBrains Mono',monospace;font-size:11px;color:#F2EEE7;}
+.detail-color-name{font-size:11px;color:#A29E97;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.detail-color-recipe{font-size:10px;color:#817E78;margin-top:7px;line-height:1.35;}
+.detail-delete{position:absolute;right:7px;top:7px;width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(20,20,18,.7);color:#F4F0E9;cursor:pointer;}
+.detail-delete:hover{background:#2B1F1B;color:#F6A38B;}
+@media (max-width:1050px){.palette-detail-grid{grid-template-columns:repeat(4,minmax(0,1fr));}.palettes-list{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (max-width:650px){.palette-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.palettes-list{grid-template-columns:1fr;}}
+
+@media (max-width:880px){.mix-grid{grid-template-columns:1fr}.image-pane{padding-right:0;border-right:0}.well-pane{padding-left:0}.topbar{position:static}.login-title{font-size:44px}}
+
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div id="loginScreen" class="login-screen">
+  <span class="float-dot d1"></span><span class="float-dot d2"></span><span class="float-dot d3"></span><span class="float-dot d4"></span><span class="float-dot d5"></span><span class="float-dot d6"></span><span class="float-dot d7"></span>
+  <div class="login-card">
+    <div class="login-brand"><div class="login-brand-dot"></div><span>palette</span></div>
+    <div class="login-title">What’s my<br>palette?</div>
+    <p class="login-sub">Point at any color in a photo<br>and find out what to mix.</p>
+    <button id="googleLoginBtn" class="google-btn">
+      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.88 2.7-6.62z"/>
+        <path fill="#34A853" d="M9 18c2.43 0 4.47-.81 5.96-2.18l-2.9-2.26c-.81.54-1.85.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/>
+        <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.67 9c0-.59.1-1.17.28-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.33z"/>
+        <path fill="#EA4335" d="M9 3.58c1.32 0 2.51.46 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/>
+      </svg>
+      Continue with Google
+    </button>
+    <div class="login-legal">By continuing you agree to our Terms and Privacy Policy.</div>
+    <div id="configWarning" class="config-warning hidden">
+      palette isn't connected to a database yet — open this file and set <code>SUPABASE_URL</code> and <code>SUPABASE_ANON_KEY</code> near the top of the script.
+    </div>
+  </div>
+</div>
+
+<div id="app" class="hidden">
+  <header class="topbar">
+    <div class="brand"><span class="brand-dot"></span>palette</div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="mix">Mix</button>
+      <button class="tab" data-tab="palettes">Palettes</button>
+      <button class="tab" data-tab="paints">Paints</button>
+    </nav>
+    <div class="account">
+      <span id="userEmail" class="account-email"></span>
+      <button id="signOutBtn" class="ghost-btn small">Sign out</button>
+    </div>
+  </header>
+
+  <main>
+    <!-- MIX TAB -->
+    <section id="tab-mix" class="tab-panel active">
+      <div class="mix-grid">
+        <div class="image-pane">
+          <div class="step-heading"><strong>1. Upload your image</strong><span>Choose a reference photo to sample colors from.</span></div>
+          <div id="dropzone" class="dropzone" tabindex="0" role="button" aria-label="Upload a reference photo">
+            <input type="file" id="fileInput" accept="image/*" hidden>
+            <div class="dropzone-icon">＋</div>
+            <div class="dropzone-title">Add a reference photo</div>
+            <div class="dropzone-sub">Drop an image here, or tap to choose one. Then press and drag on it to sample a color.</div>
+          </div>
+          <div id="canvasWrap" class="canvas-wrap hidden">
+            <canvas id="imgCanvas"></canvas>
+            <div id="loupe" class="loupe hidden">
+              <canvas id="loupeCanvas" width="112" height="112"></canvas>
+              <div class="loupe-cross"></div>
+            </div>
+          </div>
+          <div id="changeRow" class="change-photo-row hidden">
+            <span class="canvas-caption">Press, drag to fine-tune, release to sample.</span>
+            <button id="changeImageBtn" class="ghost-btn small">Change photo</button>
+          </div>
+        </div>
+
+        <aside class="well-pane">
+          <div class="step-heading"><strong>2. Pick a color</strong><span>Click anywhere on the image to pick a color.</span></div>
+          <div id="pickedEmpty" class="picked-empty">Sample a color from your photo and palette will work out the paints to mix for it.</div>
+
+          <div id="pickedResult" class="picked-result hidden">
+            <div class="picked-swatch-row">
+              <div id="pickedSwatch" class="picked-swatch"></div>
+              <div>
+                <div id="pickedHex" class="picked-hex">#000000</div>
+                <div class="picked-label">sampled color</div>
+              </div>
+            </div>
+
+            <div class="recipe-heading">3. To make this color, mix:</div>
+            <div id="recipeStack" class="recipe-stack"></div>
+            <ul id="recipeList" class="recipe-list"></ul>
+
+            <div class="save-form">
+              <label class="field-label" for="colorNameInput">Color name</label>
+              <input type="text" id="colorNameInput" placeholder="e.g. Sunset shadow">
+
+              <label class="field-label" for="paletteSelect">Palette</label>
+              <select id="paletteSelect"></select>
+              <div id="newPaletteRow" class="new-palette-row hidden">
+                <input type="text" id="newPaletteInput" placeholder="New palette name">
+              </div>
+
+              <button id="addToPaletteBtn" class="primary-btn">+ Add to palette</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- PALETTES TAB -->
+    <section id="tab-palettes" class="tab-panel">
+      <div class="palettes-header">
+        <div>
+          <h2>My Palettes</h2>
+          <p class="hint" style="margin-bottom:0;">Organize and save your favorite colors.</p>
+        </div>
+        <button id="newPaletteBtn2" class="primary-btn small">+ New palette</button>
+      </div>
+      <div id="newPaletteForm2" class="new-palette-form hidden">
+        <input type="text" id="newPaletteInput2" placeholder="Palette name">
+        <button id="confirmNewPalette2" class="ghost-btn small">Create</button>
+      </div>
+      <div id="palettesEmpty" class="empty-state">No palettes yet. Mix a color on the Mix tab to start your first one.</div>
+      <div id="palettesList" class="palettes-list"></div>
+      <div id="paletteDetail" class="palette-detail hidden"></div>
+    </section>
+
+    <!-- PAINTS TAB -->
+    <section id="tab-paints" class="tab-panel">
+      <h2>My paints</h2>
+      <p class="hint">palette only suggests recipes from paints you own. Keep at least three checked.</p>
+      <div id="paintsGrid" class="paints-grid"></div>
+      <div id="paintsNote" class="paints-note"></div>
+    </section>
+  </main>
+</div>
+<div id="toast" class="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= SET THESE TWO VALUES =================
+     Find them in Supabase → Project Settings → API
+  ============================================================ */
+  var SUPABASE_URL = 'https://kdqkvnaoingalaawifvr.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_3EsT3bY-YD6pWOH0KP4x2g_Lur8urh-';
+  /* =========================================================== */
+
+  /* ---------------- pigment library ---------------- */
+  var PIGMENTS = [
+    {id:'twhite', name:'Titanium White',        hex:'#F7F4EC'},
+    {id:'mblack', name:'Mars Black',             hex:'#201D1B'},
+    {id:'cyl',    name:'Cadmium Yellow Light',   hex:'#FFE711'},
+    {id:'cym',    name:'Cadmium Yellow Medium',  hex:'#FFB60B'},
+    {id:'crm',    name:'Cadmium Red Medium',     hex:'#E1291B'},
+    {id:'aliz',   name:'Alizarin Crimson',       hex:'#7E1F2E'},
+    {id:'ultra',  name:'Ultramarine Blue',       hex:'#1B2A83'},
+    {id:'phblue', name:'Phthalo Blue',           hex:'#0A3161'},
+    {id:'phgrn',  name:'Phthalo Green',          hex:'#0B3D2E'},
+    {id:'bsien',  name:'Burnt Sienna',           hex:'#8A3B24'},
+    {id:'bumb',   name:'Burnt Umber',            hex:'#4A2E20'},
+    {id:'ochre',  name:'Yellow Ochre',           hex:'#C8922E'},
+    {id:'diox',   name:'Dioxazine Purple',       hex:'#3B1F5E'}
+  ];
+
+  function hexToRgb(hex){
+    var h = hex.replace('#','');
+    return [parseInt(h.substr(0,2),16), parseInt(h.substr(2,2),16), parseInt(h.substr(4,2),16)];
+  }
+  function rgbToHex(r,g,b){
+    function c(v){ v=Math.max(0,Math.min(255,Math.round(v))); var s=v.toString(16); return s.length===1?'0'+s:s; }
+    return '#'+c(r)+c(g)+c(b);
+  }
+  PIGMENTS.forEach(function(p){ p.rgb = hexToRgb(p.hex); });
+
+  /* ---------------- supabase client + auth ---------------- */
+  var sb = null;
+  var currentUser = null;
+  var booted = false;
+
+  function configLooksReal(){
+    return SUPABASE_URL && SUPABASE_ANON_KEY &&
+      SUPABASE_URL.indexOf('YOUR_') !== 0 && SUPABASE_ANON_KEY.indexOf('YOUR_') !== 0;
+  }
+  if(configLooksReal() && window.supabase){
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+
+  document.getElementById('googleLoginBtn').addEventListener('click', function(){
+    if(!sb){ document.getElementById('configWarning').classList.remove('hidden'); return; }
+    sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/palette.html' }
+    });
+  });
+  document.getElementById('signOutBtn').addEventListener('click', function(){
+    if(sb) sb.auth.signOut();
+  });
+
+  function showLoggedOut(){
+    currentUser = null;
+    booted = false;
+    document.getElementById('app').classList.add('hidden');
+    document.getElementById('loginScreen').classList.remove('hidden');
+  }
+
+  function showLoggedIn(user){
+    currentUser = user;
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    document.getElementById('userEmail').textContent = user.email || '';
+    if(!booted){
+      booted = true;
+      bootData();
+    }
+  }
+
+  function initAuth(){
+    if(!sb){
+      document.getElementById('configWarning').classList.remove('hidden');
+      return;
+    }
+    sb.auth.getSession().then(function(res){
+      var session = res && res.data && res.data.session;
+      if(session && session.user){ showLoggedIn(session.user); } else { showLoggedOut(); }
+    });
+    sb.auth.onAuthStateChange(function(event, session){
+      if(session && session.user){ showLoggedIn(session.user); } else { showLoggedOut(); }
+    });
+  }
+
+  /* ---------------- remote data helpers ---------------- */
+  function fetchAllPalettes(){
+    return sb.from('palettes')
+      .select('id,name,created_at,colors(id,name,hex,mix,match,created_at)')
+      .order('created_at', {ascending:true})
+      .then(function(res){
+        if(res.error){ console.error(res.error); showToast('Could not load your palettes'); return []; }
+        return res.data.map(function(p){
+          var colors = (p.colors||[]).slice().sort(function(a,b){
+            return new Date(a.created_at) - new Date(b.created_at);
+          });
+          return {
+            id: p.id, name: p.name, createdAt: new Date(p.created_at).getTime(),
+            colors: colors.map(function(c){
+              return {id:c.id, name:c.name, hex:c.hex, mix:c.mix, match:c.match, createdAt:new Date(c.created_at).getTime()};
+            })
+          };
+        });
+      });
+  }
+  function fetchOwnedPaints(){
+    return sb.from('user_settings').select('owned_paints').eq('user_id', currentUser.id).maybeSingle()
+      .then(function(res){
+        if(res.error){ console.error(res.error); return null; }
+        return res.data ? res.data.owned_paints : null;
+      });
+  }
+  function createPaletteRemote(name){
+    return sb.from('palettes').insert({name:name, user_id:currentUser.id}).select().single()
+      .then(function(res){
+        if(res.error){ console.error(res.error); showToast('Could not create palette'); return null; }
+        return {id:res.data.id, name:res.data.name, createdAt:new Date(res.data.created_at).getTime(), colors:[]};
+      });
+  }
+  function addColorRemote(paletteId, color){
+    return sb.from('colors').insert({
+      palette_id: paletteId, name: color.name, hex: color.hex, mix: color.mix, match: color.match
+    }).select().single().then(function(res){
+      if(res.error){ console.error(res.error); showToast('Could not save color'); return null; }
+      var c = res.data;
+      return {id:c.id, name:c.name, hex:c.hex, mix:c.mix, match:c.match, createdAt:new Date(c.created_at).getTime()};
+    });
+  }
+  function deletePaletteRemote(id){
+    return sb.from('palettes').delete().eq('id', id).then(function(res){
+      if(res.error){ console.error(res.error); showToast('Could not delete palette'); return false; }
+      return true;
+    });
+  }
+  function deleteColorRemote(id){
+    return sb.from('colors').delete().eq('id', id).then(function(res){
+      if(res.error){ console.error(res.error); showToast('Could not delete color'); return false; }
+      return true;
+    });
+  }
+  function renameColorRemote(id, name){
+    return sb.from('colors').update({name:name}).eq('id', id).then(function(res){
+      if(res.error){ console.error(res.error); showToast('Could not rename color'); return false; }
+      return true;
+    });
+  }
+  function saveOwnedPaintsRemote(list){
+    return sb.from('user_settings').upsert({user_id:currentUser.id, owned_paints:list}, {onConflict:'user_id'})
+      .then(function(res){
+        if(res.error){ console.error(res.error); showToast('Could not save your paint selection'); return false; }
+        return true;
+      });
+  }
+
+  /* ---------------- app state ---------------- */
+  var state = {
+    palettes: [],
+    ownedPaints: PIGMENTS.map(function(p){return p.id;}),
+    pickedColor: null,
+    currentMix: null,
+    currentMatch: 100
+  };
+
+  /* ---------------- tabs ---------------- */
+  var tabButtons = document.querySelectorAll('.tab');
+  var tabPanels = document.querySelectorAll('.tab-panel');
+  tabButtons.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      tabButtons.forEach(function(b){ b.classList.remove('active'); });
+      tabPanels.forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('tab-'+btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab==='palettes') renderPalettes();
+    });
+  });
+
+  /* ---------------- toast ---------------- */
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 2400);
+  }
+
+  /* ---------------- image upload + canvas ---------------- */
+  var dropzone = document.getElementById('dropzone');
+  var fileInput = document.getElementById('fileInput');
+  var canvasWrap = document.getElementById('canvasWrap');
+  var changeRow = document.getElementById('changeRow');
+  var canvas = document.getElementById('imgCanvas');
+  var ctx = canvas.getContext('2d', {willReadFrequently:true});
+  var loupe = document.getElementById('loupe');
+  var loupeCanvas = document.getElementById('loupeCanvas');
+  var loupeCtx = loupeCanvas.getContext('2d');
+
+  dropzone.addEventListener('click', function(){ fileInput.click(); });
+  dropzone.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ fileInput.click(); } });
+  document.getElementById('changeImageBtn').addEventListener('click', function(){ fileInput.click(); });
+
+  ['dragover','dragenter'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){ e.preventDefault(); dropzone.classList.add('drag'); });
+  });
+  ['dragleave','drop'].forEach(function(evt){
+    dropzone.addEventListener(evt, function(e){ e.preventDefault(); dropzone.classList.remove('drag'); });
+  });
+  dropzone.addEventListener('drop', function(e){
+    var f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if(f) loadImageFile(f);
+  });
+  fileInput.addEventListener('change', function(){
+    if(fileInput.files && fileInput.files[0]) loadImageFile(fileInput.files[0]);
+  });
+
+  function loadImageFile(file){
+    if(!file.type || file.type.indexOf('image/')!==0) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      var img = new Image();
+      img.onload = function(){
+        var maxDim = 1400;
+        var scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        dropzone.classList.add('hidden');
+        canvasWrap.classList.remove('hidden');
+        changeRow.classList.remove('hidden');
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function getPixelAt(clientX, clientY){
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    var x = Math.floor((clientX - rect.left) * scaleX);
+    var y = Math.floor((clientY - rect.top) * scaleY);
+    x = Math.max(0, Math.min(canvas.width - 1, x));
+    y = Math.max(0, Math.min(canvas.height - 1, y));
+    var d = ctx.getImageData(x, y, 1, 1).data;
+    return {r:d[0], g:d[1], b:d[2], x:x, y:y};
+  }
+
+  function updateLoupe(clientX, clientY, px){
+    var rect = canvas.getBoundingClientRect();
+    var localX = clientX - rect.left;
+    var localY = clientY - rect.top;
+    loupe.style.left = localX + 'px';
+    loupe.style.top = localY + 'px';
+    loupe.classList.remove('hidden');
+    var half = 4;
+    var sx = Math.max(0, Math.min(px.x - half, canvas.width - (half*2+1)));
+    var sy = Math.max(0, Math.min(px.y - half, canvas.height - (half*2+1)));
+    var sw = Math.min(half*2+1, canvas.width);
+    var sh = Math.min(half*2+1, canvas.height);
+    loupeCtx.imageSmoothingEnabled = false;
+    loupeCtx.clearRect(0,0,loupeCanvas.width, loupeCanvas.height);
+    loupeCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, loupeCanvas.width, loupeCanvas.height);
+  }
+
+  var dragging = false;
+  canvas.addEventListener('pointerdown', function(e){
+    dragging = true;
+    canvas.setPointerCapture(e.pointerId);
+    var px = getPixelAt(e.clientX, e.clientY);
+    updateLoupe(e.clientX, e.clientY, px);
+  });
+  canvas.addEventListener('pointermove', function(e){
+    if(!dragging) return;
+    var px = getPixelAt(e.clientX, e.clientY);
+    updateLoupe(e.clientX, e.clientY, px);
+  });
+  function endDrag(e){
+    if(!dragging) return;
+    dragging = false;
+    loupe.classList.add('hidden');
+    var px = getPixelAt(e.clientX, e.clientY);
+    commitPickedColor(px.r, px.g, px.b);
+  }
+  canvas.addEventListener('pointerup', endDrag);
+  canvas.addEventListener('pointercancel', function(){ dragging=false; loupe.classList.add('hidden'); });
+
+  /* ---------------- mixing algorithm ---------------- */
+  function colorDistSq(a,b){
+    var dr=a[0]-b[0], dg=a[1]-b[1], db=a[2]-b[2];
+    return dr*dr+dg*dg+db*db;
+  }
+  function combos3(arr){
+    var res=[], n=arr.length;
+    for(var i=0;i<n-2;i++)
+      for(var j=i+1;j<n-1;j++)
+        for(var k=j+1;k<n;k++)
+          res.push([arr[i],arr[j],arr[k]]);
+    return res;
+  }
+  function bestMix(targetRgb, pool){
+    if(pool.length < 3) pool = PIGMENTS.slice();
+    var combos = combos3(pool);
+    var step = 5;
+    var best = null;
+    for(var ci=0; ci<combos.length; ci++){
+      var combo = combos[ci];
+      var p1=combo[0], p2=combo[1], p3=combo[2];
+      for(var a=0; a<=100; a+=step){
+        for(var b=0; b<=100-a; b+=step){
+          var c = 100 - a - b;
+          var r = (p1.rgb[0]*a + p2.rgb[0]*b + p3.rgb[0]*c)/100;
+          var g = (p1.rgb[1]*a + p2.rgb[1]*b + p3.rgb[1]*c)/100;
+          var bl= (p1.rgb[2]*a + p2.rgb[2]*b + p3.rgb[2]*c)/100;
+          var d = colorDistSq(targetRgb, [r,g,bl]);
+          if(best===null || d<best.dist){
+            best = {dist:d, combo:combo, weights:[a,b,c]};
+          }
+        }
+      }
+    }
+    var result = best.combo.map(function(p,i){
+      return {id:p.id, name:p.name, hex:p.hex, percent:best.weights[i]};
+    }).filter(function(x){ return x.percent>0; });
+    result.sort(function(x,y){ return y.percent - x.percent; });
+    var maxDist = 3*255*255;
+    var match = Math.round(Math.max(0, 100 - (Math.sqrt(best.dist)/Math.sqrt(maxDist))*100));
+    return {mix:result, match:match};
+  }
+
+  function computeAndRenderMix(r,g,b){
+    var pool = PIGMENTS.filter(function(p){ return state.ownedPaints.indexOf(p.id)>=0; });
+    var out = bestMix([r,g,b], pool);
+    state.currentMix = out.mix;
+    state.currentMatch = out.match;
+    renderRecipe();
+  }
+
+  function commitPickedColor(r,g,b){
+    state.pickedColor = {r:r,g:g,b:b,hex:rgbToHex(r,g,b)};
+    document.getElementById('pickedEmpty').classList.add('hidden');
+    document.getElementById('pickedResult').classList.remove('hidden');
+    document.getElementById('pickedSwatch').style.background = state.pickedColor.hex;
+    document.getElementById('pickedHex').textContent = state.pickedColor.hex.toUpperCase();
+    document.getElementById('colorNameInput').value = '';
+    computeAndRenderMix(r,g,b);
+  }
+
+  function renderRecipe(){
+    var stack = document.getElementById('recipeStack');
+    var list = document.getElementById('recipeList');
+    stack.innerHTML = '';
+    list.innerHTML = '';
+    state.currentMix.forEach(function(m){
+      var seg = document.createElement('div');
+      seg.className = 'recipe-seg';
+      seg.style.width = m.percent + '%';
+      seg.style.background = m.hex;
+      stack.appendChild(seg);
+
+      var li = document.createElement('li');
+      var dot = document.createElement('span');
+      dot.className = 'recipe-dot';
+      dot.style.background = m.hex;
+      var name = document.createElement('span');
+      name.className = 'recipe-name';
+      name.textContent = m.name;
+      var pct = document.createElement('span');
+      pct.className = 'recipe-pct';
+      pct.textContent = m.percent + '%';
+      li.appendChild(dot); li.appendChild(name); li.appendChild(pct);
+      list.appendChild(li);
+    });
+  }
+
+  /* ---------------- palette select ---------------- */
+  var paletteSelect = document.getElementById('paletteSelect');
+  var newPaletteRow = document.getElementById('newPaletteRow');
+  var newPaletteInput = document.getElementById('newPaletteInput');
+
+  function refreshPaletteSelect(preferId){
+    var prev = paletteSelect.value;
+    paletteSelect.innerHTML = '';
+    state.palettes.forEach(function(p){
+      var opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.name;
+      paletteSelect.appendChild(opt);
+    });
+    var newOpt = document.createElement('option');
+    newOpt.value = '__new__'; newOpt.textContent = '+ New palette…';
+    paletteSelect.appendChild(newOpt);
+
+    var exists = function(id){
+      return Array.prototype.some.call(paletteSelect.options, function(o){ return o.value===id; });
+    };
+    if(preferId && exists(preferId)){
+      paletteSelect.value = preferId;
+    } else if(prev && prev !== '__new__' && exists(prev)){
+      paletteSelect.value = prev;
+    } else if(state.palettes.length){
+      paletteSelect.value = state.palettes[state.palettes.length-1].id;
+    } else {
+      paletteSelect.value = '__new__';
+    }
+    newPaletteRow.classList.toggle('hidden', paletteSelect.value !== '__new__');
+  }
+  paletteSelect.addEventListener('change', function(){
+    newPaletteRow.classList.toggle('hidden', paletteSelect.value !== '__new__');
+  });
+
+  /* ---------------- add to palette (async, hits Supabase) ---------------- */
+  var addBtn = document.getElementById('addToPaletteBtn');
+  addBtn.addEventListener('click', function(){
+    if(!state.pickedColor || !state.currentMix){
+      showToast('Sample a color first');
+      return;
+    }
+    var originalLabel = addBtn.textContent;
+    addBtn.disabled = true;
+    addBtn.textContent = 'Saving…';
+
+    var creatingNew = (paletteSelect.value === '__new__');
+    var paletteStep;
+    if(creatingNew){
+      var name = (newPaletteInput.value || '').trim() || 'Untitled palette';
+      paletteStep = createPaletteRemote(name).then(function(pal){
+        if(pal) state.palettes.push(pal);
+        return pal;
+      });
+    } else {
+      paletteStep = Promise.resolve(state.palettes.filter(function(p){ return p.id===paletteSelect.value; })[0] || null);
+    }
+
+    paletteStep.then(function(targetPalette){
+      if(!targetPalette){
+        showToast('Choose or create a palette first');
+        return;
+      }
+      var colorName = (document.getElementById('colorNameInput').value || '').trim();
+      if(!colorName) colorName = 'Color ' + (targetPalette.colors.length + 1);
+
+      return addColorRemote(targetPalette.id, {
+        name: colorName, hex: state.pickedColor.hex, mix: state.currentMix, match: state.currentMatch
+      }).then(function(savedColor){
+        if(!savedColor) return;
+        targetPalette.colors.push(savedColor);
+        newPaletteInput.value = '';
+        refreshPaletteSelect(targetPalette.id);
+        renderPalettes();
+        showToast('Saved to ' + targetPalette.name);
+      });
+    }).finally(function(){
+      addBtn.disabled = false;
+      addBtn.textContent = originalLabel;
+    });
+  });
+
+  /* ---------------- palettes tab ---------------- */
+  var palettesList = document.getElementById('palettesList');
+  var palettesEmpty = document.getElementById('palettesEmpty');
+
+  var paletteDetail = document.getElementById('paletteDetail');
+
+  function renderPalettes(){
+    palettesList.innerHTML = '';
+    paletteDetail.classList.add('hidden');
+    paletteDetail.innerHTML = '';
+    palettesList.classList.remove('hidden');
+    document.querySelector('.palettes-header').classList.remove('hidden');
+    palettesEmpty.classList.toggle('hidden', state.palettes.length>0);
+
+    state.palettes.forEach(function(pal){
+      var card = document.createElement('div');
+      card.className = 'palette-card';
+      card.setAttribute('role','button');
+      card.setAttribute('tabindex','0');
+
+      var head = document.createElement('div');
+      head.className = 'palette-card-head';
+
+      var titleWrap = document.createElement('div');
+      titleWrap.className = 'palette-card-title';
+      var nameEl = document.createElement('span');
+      nameEl.className = 'palette-name'; nameEl.textContent = pal.name;
+      var countEl = document.createElement('span');
+      countEl.className = 'palette-count'; countEl.textContent = pal.colors.length + (pal.colors.length===1?' color':' colors');
+      titleWrap.appendChild(nameEl); titleWrap.appendChild(countEl);
+
+      var actions = document.createElement('div');
+      actions.className = 'palette-card-actions';
+      var delPalBtn = document.createElement('button');
+      delPalBtn.className = 'icon-btn'; delPalBtn.title='Delete palette'; delPalBtn.textContent='•••';
+      delPalBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        if(!confirm('Delete palette "'+pal.name+'" and all its colors?')) return;
+        deletePaletteRemote(pal.id).then(function(ok){
+          if(!ok) return;
+          state.palettes = state.palettes.filter(function(p){ return p.id!==pal.id; });
+          refreshPaletteSelect(); renderPalettes();
+        });
+      });
+      actions.appendChild(delPalBtn);
+      head.appendChild(titleWrap); head.appendChild(actions);
+
+      var preview = document.createElement('div');
+      preview.className = 'palette-preview';
+      if(pal.colors.length){
+        pal.colors.slice(-6).forEach(function(c){
+          var seg=document.createElement('span'); seg.style.background=c.hex; preview.appendChild(seg);
+        });
+      }else{
+        var empty=document.createElement('span'); empty.style.background='#2C2C29'; preview.appendChild(empty);
+      }
+
+      card.appendChild(head); card.appendChild(preview);
+      card.addEventListener('click', function(){ openPaletteDetail(pal); });
+      card.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){e.preventDefault();openPaletteDetail(pal);} });
+      palettesList.appendChild(card);
+    });
+  }
+
+  function openPaletteDetail(pal){
+    palettesList.classList.add('hidden');
+    palettesEmpty.classList.add('hidden');
+    document.querySelector('.palettes-header').classList.add('hidden');
+    paletteDetail.classList.remove('hidden');
+    renderPaletteDetail(pal);
+  }
+
+  function renderPaletteDetail(pal){
+    paletteDetail.innerHTML='';
+    var top=document.createElement('div'); top.className='palette-detail-top';
+    var left=document.createElement('div');
+    var titleRow=document.createElement('div'); titleRow.className='palette-detail-title-row';
+    var back=document.createElement('button'); back.className='palette-back'; back.textContent='←'; back.title='Back to palettes';
+    back.addEventListener('click', renderPalettes);
+    var titleWrap=document.createElement('div');
+    var title=document.createElement('h2'); title.className='palette-detail-title'; title.textContent=pal.name;
+    var count=document.createElement('div'); count.className='palette-detail-count'; count.textContent=pal.colors.length+(pal.colors.length===1?' color':' colors');
+    titleWrap.appendChild(title); titleWrap.appendChild(count); titleRow.appendChild(back); titleRow.appendChild(titleWrap); left.appendChild(titleRow);
+    var add=document.createElement('button'); add.className='primary-btn small'; add.textContent='+ Add color';
+    add.addEventListener('click',function(){ document.querySelector('[data-tab="mix"]').click(); refreshPaletteSelect(pal.id); });
+    top.appendChild(left); top.appendChild(add); paletteDetail.appendChild(top);
+
+    if(!pal.colors.length){
+      var empty=document.createElement('div'); empty.className='empty-state'; empty.textContent='No colors in this palette yet.'; paletteDetail.appendChild(empty); return;
+    }
+    var grid=document.createElement('div'); grid.className='palette-detail-grid';
+    pal.colors.slice().reverse().forEach(function(c){
+      var card=document.createElement('div'); card.className='detail-color-card';
+      var sw=document.createElement('div'); sw.className='detail-color-swatch'; sw.style.background=c.hex;
+      var del=document.createElement('button'); del.className='detail-delete'; del.textContent='×'; del.title='Delete color';
+      del.addEventListener('click',function(){
+        if(!confirm('Delete "'+c.name+'"?')) return;
+        deleteColorRemote(c.id).then(function(ok){ if(!ok)return; pal.colors=pal.colors.filter(function(x){return x.id!==c.id;}); renderPaletteDetail(pal); refreshPaletteSelect(pal.id); });
+      });
+      var info=document.createElement('div'); info.className='detail-color-info';
+      var hex=document.createElement('div'); hex.className='detail-color-hex'; hex.textContent=c.hex.toUpperCase();
+      var nm=document.createElement('div'); nm.className='detail-color-name'; nm.textContent=c.name;
+      var recipe=document.createElement('div'); recipe.className='detail-color-recipe'; recipe.textContent=(c.mix||[]).map(function(m){return m.percent+'% '+m.name;}).join(' · ');
+      info.appendChild(hex); info.appendChild(nm); info.appendChild(recipe); card.appendChild(sw); card.appendChild(del); card.appendChild(info); grid.appendChild(card);
+    });
+    paletteDetail.appendChild(grid);
+  }
+
+  function renderColorRow(pal, c){
+    var row = document.createElement('div');
+    row.className = 'color-row';
+
+    var sw = document.createElement('div');
+    sw.className = 'swatch'; sw.style.background = c.hex;
+
+    var main = document.createElement('div');
+    main.className = 'color-row-main';
+
+    var top = document.createElement('div');
+    top.className = 'color-row-top';
+
+    var nameInput = document.createElement('input');
+    nameInput.className = 'color-name-input';
+    nameInput.value = c.name;
+    nameInput.addEventListener('change', function(){
+      var newName = nameInput.value.trim() || c.name;
+      renameColorRemote(c.id, newName).then(function(ok){
+        if(ok) c.name = newName; else nameInput.value = c.name;
+      });
+    });
+
+    var right = document.createElement('div');
+    right.style.display='flex'; right.style.alignItems='center'; right.style.gap='8px'; right.style.flexShrink='0';
+    var match = document.createElement('span');
+    match.className = 'color-match'; match.textContent = c.match + '% match';
+    var delBtn = document.createElement('button');
+    delBtn.className = 'icon-btn'; delBtn.title='Delete color'; delBtn.textContent='✕';
+    delBtn.addEventListener('click', function(){
+      deleteColorRemote(c.id).then(function(ok){
+        if(!ok) return;
+        pal.colors = pal.colors.filter(function(x){ return x.id!==c.id; });
+        renderPalettes();
+      });
+    });
+    right.appendChild(match); right.appendChild(delBtn);
+
+    top.appendChild(nameInput);
+    top.appendChild(right);
+
+    var recipe = document.createElement('div');
+    recipe.className = 'color-recipe';
+    recipe.innerHTML = c.mix.map(function(m){ return '<b>'+m.percent+'%</b> '+m.name; }).join(' · ');
+
+    main.appendChild(top);
+    main.appendChild(recipe);
+    row.appendChild(sw);
+    row.appendChild(main);
+    return row;
+  }
+
+  document.getElementById('newPaletteBtn2').addEventListener('click', function(){
+    document.getElementById('newPaletteForm2').classList.toggle('hidden');
+    document.getElementById('newPaletteInput2').focus();
+  });
+  document.getElementById('confirmNewPalette2').addEventListener('click', function(){
+    var input = document.getElementById('newPaletteInput2');
+    var name = input.value.trim();
+    if(!name) return;
+    createPaletteRemote(name).then(function(newPal){
+      if(!newPal) return;
+      state.palettes.push(newPal);
+      input.value = '';
+      document.getElementById('newPaletteForm2').classList.add('hidden');
+      refreshPaletteSelect(newPal.id);
+      renderPalettes();
+      showToast('Palette created');
+    });
+  });
+
+  /* ---------------- paints tab ---------------- */
+  var paintsGrid = document.getElementById('paintsGrid');
+  var paintsNote = document.getElementById('paintsNote');
+
+  function renderPaints(){
+    paintsGrid.innerHTML = '';
+    PIGMENTS.forEach(function(p){
+      var chip = document.createElement('label');
+      chip.className = 'paint-chip' + (state.ownedPaints.indexOf(p.id)>=0 ? ' checked' : '');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = state.ownedPaints.indexOf(p.id)>=0;
+      cb.addEventListener('change', function(){
+        var idx = state.ownedPaints.indexOf(p.id);
+        var next = state.ownedPaints.slice();
+        if(cb.checked && idx<0){
+          next.push(p.id);
+        } else if(!cb.checked && idx>=0){
+          if(next.length<=3){
+            cb.checked = true;
+            paintsNote.textContent = 'Keep at least three paints checked so palette can mix combinations.';
+            setTimeout(function(){ paintsNote.textContent=''; }, 2600);
+            return;
+          }
+          next.splice(idx,1);
+        }
+        state.ownedPaints = next;
+        chip.classList.toggle('checked', cb.checked);
+        saveOwnedPaintsRemote(next);
+      });
+      var sw = document.createElement('span');
+      sw.className = 'paint-swatch'; sw.style.background = p.hex;
+      var nm = document.createElement('span');
+      nm.className = 'paint-name'; nm.textContent = p.name;
+      chip.appendChild(cb); chip.appendChild(sw); chip.appendChild(nm);
+      paintsGrid.appendChild(chip);
+    });
+  }
+
+  /* ---------------- boot after sign-in ---------------- */
+  function bootData(){
+    Promise.all([fetchAllPalettes(), fetchOwnedPaints()]).then(function(res){
+      state.palettes = res[0] || [];
+      state.ownedPaints = (res[1] && res[1].length>=3) ? res[1] : PIGMENTS.map(function(p){return p.id;});
+      refreshPaletteSelect();
+      renderPalettes();
+      renderPaints();
+    });
+  }
+
+  initAuth();
+
+})();
+</script>
+</body>
+</html>
