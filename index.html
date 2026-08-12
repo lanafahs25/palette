@@ -639,7 +639,7 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
     if(!sb){ document.getElementById('configWarning').classList.remove('hidden'); return; }
     sb.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/palette.html' }
+      options: { redirectTo: window.location.origin + '/palette/' }
     });
   });
   document.getElementById('signOutBtn').addEventListener('click', function(){
