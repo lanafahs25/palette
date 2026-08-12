@@ -143,6 +143,16 @@ h2{font-family:'Fraunces',serif;font-weight:600;font-size:20px;margin:0 0 4px;le
 
 .canvas-wrap{position:relative;}
 
+.sample-pointer,.photo-pointer{
+  position:absolute;width:22px;height:22px;border-radius:50%;
+  border:3px solid #fff;box-shadow:0 2px 10px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.4);
+  transform:translate(-50%,-50%);z-index:4;pointer-events:none;
+}
+.sample-pointer::after,.photo-pointer::after{
+  content:"";position:absolute;left:50%;top:100%;width:2px;height:13px;
+  background:#fff;transform:translateX(-50%);box-shadow:0 1px 2px rgba(0,0,0,.55);
+}
+
 #imgCanvas{
   width:100%;height:auto;display:block;border-radius:var(--radius-lg);
   box-shadow:var(--shadow);touch-action:none;cursor:crosshair;
@@ -295,13 +305,12 @@ select{appearance:none;background-image:linear-gradient(45deg, transparent 50%, 
   border:2px solid #A8D8F0;
   border-radius:14px;
   background:#20211F;
-  
 }
 .paint-chip:hover{border-color:var(--ink-faint);}
-.paint-chip.checked{border-color:var(--ink);background:#22221F;}
+.paint-chip.checked{border-color:var(--ink);background:#fff;}
 .paint-chip input{accent-color:var(--cadmium);width:15px;height:15px;flex-shrink:0;}
 .paint-swatch{width:20px;height:20px;border-radius:50%;flex-shrink:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,0.1);}
-.paint-name{font-size:13px;font-weight:700;}
+.paint-name{font-size:13px;font-weight:500;}
 .paints-note{font-size:12px;color:var(--cadmium-dark);margin-top:10px;min-height:16px;}
 
 /* ---------- toast ---------- */
@@ -414,6 +423,21 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
 .detail-color-recipe{font-size:10px;color:#817E78;margin-top:7px;line-height:1.35;}
 .detail-delete{position:absolute;right:7px;top:7px;width:26px;height:26px;border-radius:50%;border:1px solid rgba(255,255,255,.15);background:rgba(20,20,18,.7);color:#F4F0E9;cursor:pointer;}
 .detail-delete:hover{background:#2B1F1B;color:#F6A38B;}
+.palette-photo-layout{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.65fr);gap:18px;align-items:start;margin-bottom:22px;}
+.palette-photo-wrap{position:relative;border-radius:12px;overflow:hidden;background:#20211F;border:1px solid #30302D;}
+.palette-photo{display:block;width:100%;height:auto;}
+.photo-pointer{pointer-events:auto;cursor:pointer;width:24px;height:24px;padding:0;appearance:none;}
+.photo-pointer:hover,.photo-pointer.active{transform:translate(-50%,-50%) scale(1.18);z-index:6;}
+.photo-pointer:focus-visible{outline:3px solid #A8D8F0;outline-offset:3px;}
+.pointer-recipe{background:#20211F;border:1px solid #30302D;border-radius:12px;padding:18px;min-height:170px;}
+.pointer-recipe-empty{color:#8F8B84;font-size:13px;line-height:1.5;}
+.pointer-recipe-swatch{width:46px;height:46px;border-radius:50%;margin-bottom:12px;border:2px solid rgba(255,255,255,.75);}
+.pointer-recipe-name{font-size:17px;font-weight:600;margin-bottom:4px;}
+.pointer-recipe-hex{font:11px 'JetBrains Mono',monospace;color:#9D9992;margin-bottom:15px;}
+.pointer-recipe-list{display:flex;flex-direction:column;gap:8px;list-style:none;margin:0;padding:0;}
+.pointer-recipe-list li{display:grid;grid-template-columns:10px 1fr auto;gap:8px;align-items:center;font-size:12px;color:#D8D2C9;}
+.pointer-recipe-dot{width:9px;height:9px;border-radius:50%;}
+@media (max-width:760px){.palette-photo-layout{grid-template-columns:1fr}.pointer-recipe{min-height:0;}}
 @media (max-width:1050px){.palette-detail-grid{grid-template-columns:repeat(4,minmax(0,1fr));}.palettes-list{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (max-width:650px){.palette-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.palettes-list{grid-template-columns:1fr;}}
 
@@ -474,6 +498,7 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
           </div>
           <div id="canvasWrap" class="canvas-wrap hidden">
             <canvas id="imgCanvas"></canvas>
+            <div id="samplePointer" class="sample-pointer hidden" aria-hidden="true"></div>
             <div id="loupe" class="loupe hidden">
               <canvas id="loupeCanvas" width="112" height="112"></canvas>
               <div class="loupe-cross"></div>
@@ -603,7 +628,7 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
     if(!sb){ document.getElementById('configWarning').classList.remove('hidden'); return; }
     sb.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.href.split('#')[0] }
+      options: { redirectTo: window.location.origin + '/palette.html' }
     });
   });
   document.getElementById('signOutBtn').addEventListener('click', function(){
@@ -645,21 +670,31 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
   /* ---------------- remote data helpers ---------------- */
   function fetchAllPalettes(){
     return sb.from('palettes')
-      .select('id,name,created_at,colors(id,name,hex,mix,match,created_at)')
+      .select('id,name,created_at,reference_image_path,reference_image_hash,reference_image_width,reference_image_height,colors(id,name,hex,mix,match,point_x,point_y,created_at)')
       .order('created_at', {ascending:true})
       .then(function(res){
         if(res.error){ console.error(res.error); showToast('Could not load your palettes'); return []; }
-        return res.data.map(function(p){
+        return Promise.all(res.data.map(function(p){
           var colors = (p.colors||[]).slice().sort(function(a,b){
             return new Date(a.created_at) - new Date(b.created_at);
           });
-          return {
+          var pal = {
             id: p.id, name: p.name, createdAt: new Date(p.created_at).getTime(),
+            referenceImagePath:p.reference_image_path||null,
+            referenceImageHash:p.reference_image_hash||null,
+            referenceImageWidth:p.reference_image_width||null,
+            referenceImageHeight:p.reference_image_height||null,
+            referenceImageUrl:null,
             colors: colors.map(function(c){
-              return {id:c.id, name:c.name, hex:c.hex, mix:c.mix, match:c.match, createdAt:new Date(c.created_at).getTime()};
+              return {id:c.id, name:c.name, hex:c.hex, mix:c.mix, match:c.match, pointX:c.point_x, pointY:c.point_y, createdAt:new Date(c.created_at).getTime()};
             })
           };
-        });
+          if(!pal.referenceImagePath) return pal;
+          return sb.storage.from('palette-images').createSignedUrl(pal.referenceImagePath, 3600).then(function(imgRes){
+            if(!imgRes.error && imgRes.data) pal.referenceImageUrl=imgRes.data.signedUrl;
+            return pal;
+          });
+        }));
       });
   }
   function fetchOwnedPaints(){
@@ -673,22 +708,49 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
     return sb.from('palettes').insert({name:name, user_id:currentUser.id}).select().single()
       .then(function(res){
         if(res.error){ console.error(res.error); showToast('Could not create palette'); return null; }
-        return {id:res.data.id, name:res.data.name, createdAt:new Date(res.data.created_at).getTime(), colors:[]};
+        return {id:res.data.id, name:res.data.name, createdAt:new Date(res.data.created_at).getTime(), referenceImagePath:null, referenceImageHash:null, referenceImageWidth:null, referenceImageHeight:null, referenceImageUrl:null, colors:[]};
       });
   }
   function addColorRemote(paletteId, color){
     return sb.from('colors').insert({
-      palette_id: paletteId, name: color.name, hex: color.hex, mix: color.mix, match: color.match
+      palette_id: paletteId, name: color.name, hex: color.hex, mix: color.mix, match: color.match,
+      point_x:color.pointX, point_y:color.pointY
     }).select().single().then(function(res){
       if(res.error){ console.error(res.error); showToast('Could not save color'); return null; }
       var c = res.data;
-      return {id:c.id, name:c.name, hex:c.hex, mix:c.mix, match:c.match, createdAt:new Date(c.created_at).getTime()};
+      return {id:c.id, name:c.name, hex:c.hex, mix:c.mix, match:c.match, pointX:c.point_x, pointY:c.point_y, createdAt:new Date(c.created_at).getTime()};
     });
   }
-  function deletePaletteRemote(id){
+  function attachImageToPalette(pal){
+    if(!currentImage) return Promise.resolve(false);
+    if(pal.referenceImageHash){
+      if(pal.referenceImageHash===currentImage.hash) return Promise.resolve(true);
+      paletteSelect.value='__new__';
+      newPaletteRow.classList.remove('hidden');
+      newPaletteInput.focus();
+      showToast('That palette uses another photo. Create a new palette for this image.');
+      return Promise.resolve(false);
+    }
+    var safeExt=(currentImage.file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'')||'jpg';
+    var path=currentUser.id+'/'+pal.id+'/'+currentImage.hash+'.'+safeExt;
+    return sb.storage.from('palette-images').upload(path,currentImage.file,{cacheControl:'3600',upsert:false,contentType:currentImage.file.type})
+      .then(function(uploadRes){
+        if(uploadRes.error && uploadRes.error.message.indexOf('already exists')<0){console.error(uploadRes.error);showToast('Could not save the reference photo');return false;}
+        return sb.from('palettes').update({reference_image_path:path,reference_image_hash:currentImage.hash,reference_image_width:currentImage.width,reference_image_height:currentImage.height}).eq('id',pal.id).then(function(updateRes){
+          if(updateRes.error){console.error(updateRes.error);showToast('Could not connect the photo to this palette');return false;}
+          pal.referenceImagePath=path;pal.referenceImageHash=currentImage.hash;pal.referenceImageWidth=currentImage.width;pal.referenceImageHeight=currentImage.height;pal.referenceImageUrl=currentImage.dataUrl;
+          return true;
+        });
+      });
+  }
+  function deletePaletteRemote(id,imagePath){
     return sb.from('palettes').delete().eq('id', id).then(function(res){
       if(res.error){ console.error(res.error); showToast('Could not delete palette'); return false; }
-      return true;
+      if(!imagePath) return true;
+      return sb.storage.from('palette-images').remove([imagePath]).then(function(storageRes){
+        if(storageRes.error) console.error(storageRes.error);
+        return true;
+      });
     });
   }
   function deleteColorRemote(id){
@@ -717,7 +779,8 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
     ownedPaints: PIGMENTS.map(function(p){return p.id;}),
     pickedColor: null,
     currentMix: null,
-    currentMatch: 100
+    currentMatch: 100,
+    pickedPoint: null
   };
 
   /* ---------------- tabs ---------------- */
@@ -750,9 +813,19 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
   var changeRow = document.getElementById('changeRow');
   var canvas = document.getElementById('imgCanvas');
   var ctx = canvas.getContext('2d', {willReadFrequently:true});
+  var samplePointer = document.getElementById('samplePointer');
   var loupe = document.getElementById('loupe');
   var loupeCanvas = document.getElementById('loupeCanvas');
   var loupeCtx = loupeCanvas.getContext('2d');
+  var currentImage = null;
+
+  function hashFile(file){
+    return file.arrayBuffer().then(function(buf){
+      return crypto.subtle.digest('SHA-256',buf);
+    }).then(function(hash){
+      return Array.from(new Uint8Array(hash)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    });
+  }
 
   dropzone.addEventListener('click', function(){ fileInput.click(); });
   dropzone.addEventListener('keydown', function(e){ if(e.key==='Enter'||e.key===' '){ fileInput.click(); } });
@@ -774,6 +847,9 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
 
   function loadImageFile(file){
     if(!file.type || file.type.indexOf('image/')!==0) return;
+    currentImage=null;
+    samplePointer.classList.add('hidden');
+    state.pickedPoint=null;
     var reader = new FileReader();
     reader.onload = function(e){
       var img = new Image();
@@ -783,6 +859,9 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
         canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
         canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        hashFile(file).then(function(hash){
+          currentImage={file:file,hash:hash,dataUrl:e.target.result,width:img.naturalWidth,height:img.naturalHeight};
+        }).catch(function(err){console.error(err);showToast('Could not prepare this photo');});
         dropzone.classList.add('hidden');
         canvasWrap.classList.remove('hidden');
         changeRow.classList.remove('hidden');
@@ -821,23 +900,34 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
     loupeCtx.drawImage(canvas, sx, sy, sw, sh, 0, 0, loupeCanvas.width, loupeCanvas.height);
   }
 
+  function updateLivePointer(px){
+    samplePointer.style.left=((px.x/canvas.width)*100)+'%';
+    samplePointer.style.top=((px.y/canvas.height)*100)+'%';
+    samplePointer.style.background=rgbToHex(px.r,px.g,px.b);
+    samplePointer.classList.remove('hidden');
+  }
+
   var dragging = false;
   canvas.addEventListener('pointerdown', function(e){
     dragging = true;
     canvas.setPointerCapture(e.pointerId);
     var px = getPixelAt(e.clientX, e.clientY);
     updateLoupe(e.clientX, e.clientY, px);
+    updateLivePointer(px);
   });
   canvas.addEventListener('pointermove', function(e){
     if(!dragging) return;
     var px = getPixelAt(e.clientX, e.clientY);
     updateLoupe(e.clientX, e.clientY, px);
+    updateLivePointer(px);
   });
   function endDrag(e){
     if(!dragging) return;
     dragging = false;
     loupe.classList.add('hidden');
     var px = getPixelAt(e.clientX, e.clientY);
+    state.pickedPoint={x:px.x/canvas.width,y:px.y/canvas.height};
+    updateLivePointer(px);
     commitPickedColor(px.r, px.g, px.b);
   }
   canvas.addEventListener('pointerup', endDrag);
@@ -969,10 +1059,11 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
   /* ---------------- add to palette (async, hits Supabase) ---------------- */
   var addBtn = document.getElementById('addToPaletteBtn');
   addBtn.addEventListener('click', function(){
-    if(!state.pickedColor || !state.currentMix){
+    if(!state.pickedColor || !state.currentMix || !state.pickedPoint){
       showToast('Sample a color first');
       return;
     }
+    if(!currentImage){showToast('The photo is still being prepared. Try again in a moment.');return;}
     var originalLabel = addBtn.textContent;
     addBtn.disabled = true;
     addBtn.textContent = 'Saving…';
@@ -997,15 +1088,19 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
       var colorName = (document.getElementById('colorNameInput').value || '').trim();
       if(!colorName) colorName = 'Color ' + (targetPalette.colors.length + 1);
 
-      return addColorRemote(targetPalette.id, {
-        name: colorName, hex: state.pickedColor.hex, mix: state.currentMix, match: state.currentMatch
-      }).then(function(savedColor){
-        if(!savedColor) return;
-        targetPalette.colors.push(savedColor);
-        newPaletteInput.value = '';
-        refreshPaletteSelect(targetPalette.id);
-        renderPalettes();
-        showToast('Saved to ' + targetPalette.name);
+      return attachImageToPalette(targetPalette).then(function(imageOK){
+        if(!imageOK) return;
+        return addColorRemote(targetPalette.id, {
+          name: colorName, hex: state.pickedColor.hex, mix: state.currentMix, match: state.currentMatch,
+          pointX:state.pickedPoint.x, pointY:state.pickedPoint.y
+        }).then(function(savedColor){
+          if(!savedColor) return;
+          targetPalette.colors.push(savedColor);
+          newPaletteInput.value = '';
+          refreshPaletteSelect(targetPalette.id);
+          renderPalettes();
+          showToast('Saved to ' + targetPalette.name);
+        });
       });
     }).finally(function(){
       addBtn.disabled = false;
@@ -1051,7 +1146,7 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
       delPalBtn.addEventListener('click', function(e){
         e.stopPropagation();
         if(!confirm('Delete palette "'+pal.name+'" and all its colors?')) return;
-        deletePaletteRemote(pal.id).then(function(ok){
+        deletePaletteRemote(pal.id,pal.referenceImagePath).then(function(ok){
           if(!ok) return;
           state.palettes = state.palettes.filter(function(p){ return p.id!==pal.id; });
           refreshPaletteSelect(); renderPalettes();
@@ -1102,6 +1197,43 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
 
     if(!pal.colors.length){
       var empty=document.createElement('div'); empty.className='empty-state'; empty.textContent='No colors in this palette yet.'; paletteDetail.appendChild(empty); return;
+    }
+    if(pal.referenceImageUrl){
+      var photoLayout=document.createElement('div'); photoLayout.className='palette-photo-layout';
+      var photoWrap=document.createElement('div'); photoWrap.className='palette-photo-wrap';
+      var photo=document.createElement('img'); photo.className='palette-photo'; photo.src=pal.referenceImageUrl; photo.alt='Reference photo for '+pal.name;
+      photoWrap.appendChild(photo);
+      var recipePanel=document.createElement('aside'); recipePanel.className='pointer-recipe';
+      var recipeEmpty=document.createElement('div'); recipeEmpty.className='pointer-recipe-empty'; recipeEmpty.textContent='Click a pointer on the photo to view that color’s paint recipe.';
+      recipePanel.appendChild(recipeEmpty);
+
+      function showPointerRecipe(color,button){
+        Array.prototype.forEach.call(photoWrap.querySelectorAll('.photo-pointer'),function(p){p.classList.remove('active');});
+        button.classList.add('active');
+        recipePanel.innerHTML='';
+        var swatch=document.createElement('div'); swatch.className='pointer-recipe-swatch'; swatch.style.background=color.hex;
+        var recipeName=document.createElement('div'); recipeName.className='pointer-recipe-name'; recipeName.textContent=color.name;
+        var recipeHex=document.createElement('div'); recipeHex.className='pointer-recipe-hex'; recipeHex.textContent=color.hex.toUpperCase();
+        var recipeList=document.createElement('ul'); recipeList.className='pointer-recipe-list';
+        (color.mix||[]).forEach(function(m){
+          var item=document.createElement('li');
+          var dot=document.createElement('span'); dot.className='pointer-recipe-dot'; dot.style.background=m.hex;
+          var paintName=document.createElement('span'); paintName.textContent=m.name;
+          var percent=document.createElement('strong'); percent.textContent=m.percent+'%';
+          item.appendChild(dot);item.appendChild(paintName);item.appendChild(percent);recipeList.appendChild(item);
+        });
+        recipePanel.appendChild(swatch);recipePanel.appendChild(recipeName);recipePanel.appendChild(recipeHex);recipePanel.appendChild(recipeList);
+      }
+
+      pal.colors.forEach(function(c){
+        if(typeof c.pointX!=='number'||typeof c.pointY!=='number') return;
+        var pointer=document.createElement('button'); pointer.className='photo-pointer'; pointer.type='button';
+        pointer.style.left=(c.pointX*100)+'%';pointer.style.top=(c.pointY*100)+'%';pointer.style.background=c.hex;
+        pointer.title=c.name+' — view recipe';pointer.setAttribute('aria-label','View recipe for '+c.name);
+        pointer.addEventListener('click',function(){showPointerRecipe(c,pointer);});
+        photoWrap.appendChild(pointer);
+      });
+      photoLayout.appendChild(photoWrap);photoLayout.appendChild(recipePanel);paletteDetail.appendChild(photoLayout);
     }
     var grid=document.createElement('div'); grid.className='palette-detail-grid';
     pal.colors.slice().reverse().forEach(function(c){
