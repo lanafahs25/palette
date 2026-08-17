@@ -167,6 +167,16 @@
         });
       });
   }
+  function renamePaletteRemote(id, name){
+    return sb.from('palettes').update({name:name}).eq('id', id).then(function(res){
+      if(res.error){
+        console.error(res.error);
+        showToast('Could not rename palette');
+        return false;
+      }
+      return true;
+    });
+  }
   function deletePaletteRemote(id,imagePath){
     return sb.from('palettes').delete().eq('id', id).then(function(res){
       if(res.error){ console.error(res.error); showToast('Could not delete palette'); return false; }
@@ -565,18 +575,87 @@
 
       var actions = document.createElement('div');
       actions.className = 'palette-card-actions';
-      var delPalBtn = document.createElement('button');
-      delPalBtn.className = 'icon-btn'; delPalBtn.title='Delete palette'; delPalBtn.textContent='•••';
-      delPalBtn.addEventListener('click', function(e){
+
+      var menuBtn = document.createElement('button');
+      menuBtn.className = 'icon-btn';
+      menuBtn.title = 'Palette options';
+      menuBtn.textContent = '•••';
+
+      var menu = document.createElement('div');
+      menu.className = 'palette-menu hidden';
+
+      /* RENAME */
+      var renameBtn = document.createElement('button');
+      renameBtn.className = 'palette-menu-item';
+      renameBtn.textContent = 'Rename';
+
+      renameBtn.addEventListener('click', function(e){
         e.stopPropagation();
-        if(!confirm('Delete palette "'+pal.name+'" and all its colors?')) return;
-        deletePaletteRemote(pal.id,pal.referenceImagePath).then(function(ok){
+
+        var newName = prompt('Rename palette:', pal.name);
+
+        if(newName === null) return;
+
+        newName = newName.trim();
+
+        if(!newName || newName === pal.name) return;
+
+        renamePaletteRemote(pal.id, newName).then(function(ok){
           if(!ok) return;
-          state.palettes = state.palettes.filter(function(p){ return p.id!==pal.id; });
-          refreshPaletteSelect(); renderPalettes();
+
+          pal.name = newName;
+          refreshPaletteSelect(pal.id);
+          renderPalettes();
+          showToast('Palette renamed');
         });
       });
-      actions.appendChild(delPalBtn);
+
+
+      /* DELETE */
+      var deleteBtn = document.createElement('button');
+      deleteBtn.className = 'palette-menu-item delete';
+      deleteBtn.textContent = 'Delete';
+
+      deleteBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+
+        if(!confirm('Are you sure you want to delete "' + pal.name + '" and all its colors?')){
+          return;
+        }
+
+        deletePaletteRemote(pal.id, pal.referenceImagePath).then(function(ok){
+          if(!ok) return;
+
+          state.palettes = state.palettes.filter(function(p){
+            return p.id !== pal.id;
+          });
+
+          refreshPaletteSelect();
+          renderPalettes();
+          showToast('Palette deleted');
+        });
+      });
+
+
+      /* OPEN / CLOSE MENU */
+      menuBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+
+        document.querySelectorAll('.palette-menu').forEach(function(otherMenu){
+          if(otherMenu !== menu){
+            otherMenu.classList.add('hidden');
+          }
+        });
+
+        menu.classList.toggle('hidden');
+      });
+
+
+      menu.appendChild(renameBtn);
+      menu.appendChild(deleteBtn);
+
+      actions.appendChild(menuBtn);
+      actions.appendChild(menu);
       head.appendChild(titleWrap); head.appendChild(actions);
 
       var preview = document.createElement('div');
