@@ -3,8 +3,7 @@
 Palette is a color-mixing companion that helps artists recreate colors from reference photos using the paints they already own.
 
 ## Try Palette
-
- https://lanafahs25.github.io/palette/
+Live site: https://palette.bassamfahs.workers.dev/
 
 ## Features
 
