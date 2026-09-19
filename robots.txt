@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://palette.bassamfahs.workers.dev/sitemap.xml
