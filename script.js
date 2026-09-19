@@ -39,6 +39,8 @@
   var sb = null;
   var currentUser = null;
   var booted = false;
+  var currentProfile = null;
+  var pendingProfilePhoto = null;
 
   function configLooksReal(){
     return SUPABASE_URL && SUPABASE_ANON_KEY &&
@@ -52,7 +54,7 @@
     if(!sb){ document.getElementById('configWarning').classList.remove('hidden'); return; }
     sb.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/palette/' }
+      options: { redirectTo: window.location.origin + '/' }
     });
   });
   document.getElementById('signOutBtn').addEventListener('click', function(){
@@ -71,6 +73,8 @@
     document.getElementById('loginScreen').classList.add('hidden');
     document.getElementById('app').classList.remove('hidden');
     document.getElementById('userEmail').textContent = user.email || '';
+    document.getElementById('profileEmailInput').value = user.email || '';
+    applyProfileToUI(null);
     if(!booted){
       booted = true;
       bootData();
@@ -90,6 +94,110 @@
       if(session && session.user){ showLoggedIn(session.user); } else { showLoggedOut(); }
     });
   }
+
+
+
+  /* ---------------- profile ---------------- */
+  var profileModal = document.getElementById('profileModal');
+  var profileBtn = document.getElementById('profileBtn');
+  var profilePhotoInput = document.getElementById('profilePhotoInput');
+  var profileAvatarPreview = document.getElementById('profileAvatarPreview');
+  var profileAvatarInitial = document.getElementById('profileAvatarInitial');
+  var profileBtnImage = document.getElementById('profileBtnImage');
+  var profileBtnInitial = document.getElementById('profileBtnInitial');
+
+  function googleMeta(){
+    return (currentUser && currentUser.user_metadata) || {};
+  }
+  function defaultProfileName(){
+    var m=googleMeta();
+    return m.full_name || m.name || (currentUser && currentUser.email ? currentUser.email.split('@')[0] : 'Palette user');
+  }
+  function defaultProfilePhoto(){
+    var m=googleMeta();
+    return m.avatar_url || m.picture || '';
+  }
+  function profileInitial(name){
+    return ((name || defaultProfileName() || 'P').trim().charAt(0) || 'P').toUpperCase();
+  }
+  function setAvatar(url,name){
+    var has=!!url;
+    profileAvatarPreview.classList.toggle('hidden',!has);
+    profileBtnImage.classList.toggle('hidden',!has);
+    profileAvatarInitial.classList.toggle('hidden',has);
+    profileBtnInitial.classList.toggle('hidden',has);
+    if(has){ profileAvatarPreview.src=url; profileBtnImage.src=url; }
+    var initial=profileInitial(name);
+    profileAvatarInitial.textContent=initial; profileBtnInitial.textContent=initial;
+  }
+  function applyProfileToUI(profile){
+    if(!currentUser) return;
+    currentProfile=profile || currentProfile;
+    var name=(profile && profile.display_name) || defaultProfileName();
+    var photo=(profile && profile.avatar_url) || defaultProfilePhoto();
+    document.getElementById('profileNameInput').value=name || '';
+    document.getElementById('profileUsernameInput').value=(profile && profile.username) || '';
+    document.getElementById('profileBioInput').value=(profile && profile.bio) || '';
+    document.getElementById('profileEmailInput').value=currentUser.email || '';
+    setAvatar(photo,name);
+  }
+  function fetchProfile(){
+    return sb.from('profiles').select('user_id,display_name,username,bio,avatar_url').eq('user_id',currentUser.id).maybeSingle().then(function(res){
+      if(res.error){ console.error(res.error); return null; }
+      return res.data || null;
+    });
+  }
+  function uploadProfilePhoto(file){
+    if(!file) return Promise.resolve((currentProfile && currentProfile.avatar_url) || defaultProfilePhoto());
+    var ext=(file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,'') || 'jpg';
+    var path=currentUser.id+'/avatar.'+ext;
+    return sb.storage.from('profile-images').upload(path,file,{upsert:true,contentType:file.type,cacheControl:'3600'}).then(function(res){
+      if(res.error) throw res.error;
+      var pub=sb.storage.from('profile-images').getPublicUrl(path);
+      return pub && pub.data ? pub.data.publicUrl+'?v='+Date.now() : '';
+    });
+  }
+  function openProfile(){
+    applyProfileToUI(currentProfile);
+    profileModal.classList.remove('hidden'); profileModal.setAttribute('aria-hidden','false'); document.body.classList.add('profile-open');
+  }
+  function closeProfile(){
+    profileModal.classList.add('hidden'); profileModal.setAttribute('aria-hidden','true'); document.body.classList.remove('profile-open'); pendingProfilePhoto=null;
+    if(profilePhotoInput) profilePhotoInput.value='';
+    applyProfileToUI(currentProfile);
+  }
+  profileBtn.addEventListener('click',openProfile);
+  document.getElementById('closeProfileBtn').addEventListener('click',closeProfile);
+  document.getElementById('profileBackdrop').addEventListener('click',closeProfile);
+  document.addEventListener('keydown',function(e){ if(e.key==='Escape' && !profileModal.classList.contains('hidden')) closeProfile(); });
+  profilePhotoInput.addEventListener('change',function(){
+    var file=profilePhotoInput.files && profilePhotoInput.files[0];
+    if(!file) return;
+    if(!file.type || file.type.indexOf('image/')!==0){showToast('Choose an image file');return;}
+    if(file.size>5*1024*1024){showToast('Profile photo must be under 5 MB');profilePhotoInput.value='';return;}
+    pendingProfilePhoto=file;
+    var reader=new FileReader(); reader.onload=function(e){setAvatar(e.target.result,document.getElementById('profileNameInput').value);}; reader.readAsDataURL(file);
+  });
+  document.getElementById('profileNameInput').addEventListener('input',function(){
+    if(!pendingProfilePhoto && !(currentProfile && currentProfile.avatar_url) && !defaultProfilePhoto()) setAvatar('',this.value);
+  });
+  document.getElementById('profileForm').addEventListener('submit',function(e){
+    e.preventDefault();
+    var btn=document.getElementById('saveProfileBtn');
+    var name=document.getElementById('profileNameInput').value.trim();
+    var username=document.getElementById('profileUsernameInput').value.trim().replace(/^@+/,'');
+    var bio=document.getElementById('profileBioInput').value.trim();
+    if(!name){showToast('Add your name first');return;}
+    if(username && !/^[a-zA-Z0-9_.]{3,30}$/.test(username)){showToast('Username: 3–30 letters, numbers, _ or .');return;}
+    btn.disabled=true; btn.textContent='Saving…';
+    uploadProfilePhoto(pendingProfilePhoto).then(function(avatarUrl){
+      return sb.from('profiles').upsert({user_id:currentUser.id,display_name:name,username:username||null,bio:bio||null,avatar_url:avatarUrl||null,updated_at:new Date().toISOString()},{onConflict:'user_id'}).select('user_id,display_name,username,bio,avatar_url').single();
+    }).then(function(res){
+      if(res.error) throw res.error;
+      currentProfile=res.data; pendingProfilePhoto=null; applyProfileToUI(currentProfile); showToast('Profile saved'); closeProfile();
+    }).catch(function(err){console.error(err);showToast(err && err.code==='23505' ? 'That username is already taken' : 'Could not save profile');})
+      .finally(function(){btn.disabled=false;btn.textContent='Save changes';});
+  });
 
   /* ---------------- remote data helpers ---------------- */
   function fetchAllPalettes(){
@@ -903,9 +1011,11 @@
 
   /* ---------------- boot after sign-in ---------------- */
   function bootData(){
-    Promise.all([fetchAllPalettes(), fetchOwnedPaints()]).then(function(res){
+    Promise.all([fetchAllPalettes(), fetchOwnedPaints(), fetchProfile()]).then(function(res){
       state.palettes = res[0] || [];
       state.ownedPaints = (res[1] && res[1].length>=3) ? res[1] : PIGMENTS.map(function(p){return p.id;});
+      currentProfile = res[2] || null;
+      applyProfileToUI(currentProfile);
       refreshPaletteSelect();
       renderPalettes();
       renderPaints();

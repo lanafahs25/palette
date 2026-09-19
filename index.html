@@ -6,7 +6,7 @@
 <title>palette — paint mixing companion</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="script.js" defer></script>
-<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="styles.css?v=3">
 </head>
 <body>
 
@@ -37,13 +37,25 @@
   <header class="topbar">
     <div class="brand"><span class="brand-dot"></span>palette</div>
     <nav class="tabs">
-      <button class="tab active" data-tab="mix">Mix</button>
-      <button class="tab" data-tab="palettes">Palettes</button>
-      <button class="tab" data-tab="paints">Paints</button>
+      <button class="tab active" data-tab="mix" aria-label="Mix colors">
+        <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18M3 12h18M6.7 6.7l10.6 10.6M17.3 6.7 6.7 17.3"/></svg>
+        <span>Mix</span>
+      </button>
+      <button class="tab" data-tab="palettes" aria-label="Palettes">
+        <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="7" cy="8" r="3"/><circle cx="16" cy="7" r="3"/><circle cx="12" cy="16" r="3"/></svg>
+        <span>Palettes</span>
+      </button>
+      <button class="tab" data-tab="paints" aria-label="Paints">
+        <svg class="tab-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m7 4 10 10-6.5 6.5a3.5 3.5 0 0 1-5-5L12 9"/><path d="M5 20h14"/></svg>
+        <span>Paints</span>
+      </button>
     </nav>
     <div class="account">
       <span id="userEmail" class="account-email"></span>
-      <button id="signOutBtn" class="ghost-btn small">Sign out</button>
+      <button id="profileBtn" class="profile-btn" type="button" aria-label="Open profile">
+        <img id="profileBtnImage" class="profile-btn-image hidden" alt="">
+        <span id="profileBtnInitial" class="profile-btn-initial">P</span>
+      </button>
     </div>
   </header>
 
@@ -134,6 +146,50 @@
     </section>
   </main>
 </div>
+
+<!-- PROFILE MODAL -->
+<div id="profileModal" class="profile-modal hidden" aria-hidden="true">
+  <button id="profileBackdrop" class="profile-backdrop" type="button" aria-label="Close profile"></button>
+  <section class="profile-sheet" role="dialog" aria-modal="true" aria-labelledby="profileTitle">
+    <div class="profile-sheet-head">
+      <div>
+        <div class="profile-kicker">YOUR ACCOUNT</div>
+        <h2 id="profileTitle">Profile</h2>
+      </div>
+      <button id="closeProfileBtn" class="profile-close" type="button" aria-label="Close profile">×</button>
+    </div>
+
+    <div class="profile-avatar-row">
+      <div class="profile-avatar-wrap">
+        <img id="profileAvatarPreview" class="profile-avatar-image hidden" alt="Profile picture">
+        <span id="profileAvatarInitial" class="profile-avatar-initial">P</span>
+      </div>
+      <div>
+        <label for="profilePhotoInput" class="ghost-btn small profile-photo-label">Change photo</label>
+        <input id="profilePhotoInput" type="file" accept="image/*" hidden>
+        <div class="profile-photo-hint">JPG, PNG or WebP</div>
+      </div>
+    </div>
+
+    <form id="profileForm" class="profile-form">
+      <label class="field-label" for="profileNameInput">Name</label>
+      <input id="profileNameInput" type="text" maxlength="60" placeholder="Your name">
+
+      <label class="field-label" for="profileUsernameInput">Username</label>
+      <div class="profile-username-field"><span>@</span><input id="profileUsernameInput" type="text" maxlength="30" placeholder="username" autocomplete="off"></div>
+
+      <label class="field-label" for="profileBioInput">Bio</label>
+      <textarea id="profileBioInput" maxlength="160" placeholder="A little about you..."></textarea>
+
+      <label class="field-label" for="profileEmailInput">Email</label>
+      <input id="profileEmailInput" type="email" readonly>
+
+      <button id="saveProfileBtn" class="primary-btn" type="submit">Save changes</button>
+      <button id="signOutBtn" class="profile-signout" type="button">Sign out</button>
+    </form>
+  </section>
+</div>
+
 <div id="toast" class="toast"></div>
 </body>
 </html>

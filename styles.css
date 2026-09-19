@@ -93,6 +93,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{
 }
 .tab:hover{color:var(--ink);}
 .tab.active{background:var(--ink);color:var(--paper);}
+.tab-icon{display:none;width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
 
 .account{display:flex;align-items:center;gap:10px;}
 .account-email{font-size:12.5px;color:var(--ink-soft);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
@@ -494,3 +495,106 @@ input[type=text],select{background:#1C1D1B;color:#F3EEE7;border-color:#3A3A36;}
 @media (max-width:650px){.palette-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}.palettes-list{grid-template-columns:1fr;}}
 
 @media (max-width:880px){.mix-grid{grid-template-columns:1fr}.image-pane{padding-right:0;border-right:0}.well-pane{padding-left:0}.topbar{position:static}.login-title{font-size:44px}}
+
+/* ===== compact mobile app layout ===== */
+@media (max-width:650px){
+  body{padding-bottom:env(safe-area-inset-bottom);}
+  #app{padding:0 16px calc(92px + env(safe-area-inset-bottom));}
+
+  /* Keep only the brand/account row at the top. Navigation lives at the bottom. */
+  .topbar{position:relative;min-height:62px;padding:14px 0 12px;border-bottom:0;flex-wrap:nowrap;background:transparent;backdrop-filter:none;}
+  .brand{font-size:20px;gap:8px;}.brand-dot{width:18px;height:18px;}
+  .account{margin-left:auto;gap:7px;}.account-email{display:none;}.account .ghost-btn{padding:6px 10px;font-size:11px;}
+  .tabs{position:fixed;left:12px;right:12px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:45;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:6px;background:rgba(28,29,27,.96);border:1px solid #393936;border-radius:18px;box-shadow:0 12px 34px rgba(0,0,0,.48);backdrop-filter:blur(16px);}
+  .tab{display:flex;min-height:54px;padding:6px 8px;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:13px;font-size:10.5px;line-height:1;}
+  .tab-icon{display:block;}.tab.active{background:#A8D8F0;color:#171816;}
+
+  h2{font-size:23px;}.hint{font-size:12.5px;line-height:1.45;margin-bottom:14px;}
+  .tab-panel.active{animation:none;}
+
+  /* Mix: reduce repeated spacing while keeping the photo large enough to sample. */
+  .image-pane,.well-pane{padding-top:10px;}
+  .step-heading{gap:2px;margin-bottom:10px;}.step-heading strong{font-size:14px;}.step-heading span{font-size:12px;line-height:1.35;}
+  .dropzone{min-height:230px;padding:22px 18px;border-radius:14px;}
+  .dropzone-sub{font-size:12px;line-height:1.4;}.dropzone-icon{width:40px;height:40px;}
+  .mix-grid{gap:8px;}.well-pane{padding-left:0;}.picked-empty{padding:18px 0 8px;font-size:12.5px;}
+  .picked-swatch-row{padding:11px;margin-bottom:14px;}.picked-swatch{width:46px;height:46px;}
+  .recipe-heading{margin:13px 0 10px;}.recipe-list{margin-bottom:16px;gap:7px;}
+  .change-photo-row{gap:10px;}.canvas-caption{font-size:11px;}
+
+  /* Paints become compact touch-friendly blocks instead of long rows. */
+  #tab-paints{padding-top:8px;}
+  .paints-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  .paint-chip{position:relative;min-width:0;min-height:94px;padding:11px 6px 9px;flex-direction:column;justify-content:center;gap:7px;text-align:center;border-width:1.5px;border-radius:12px;cursor:pointer;}
+  .paint-chip input{position:absolute;top:7px;right:7px;width:14px;height:14px;margin:0;}
+  .paint-swatch{width:34px;height:34px;}
+  .paint-name{display:-webkit-box;overflow:hidden;-webkit-box-orient:vertical;-webkit-line-clamp:2;font-size:10.5px;line-height:1.18;}
+  .paints-note{position:sticky;bottom:82px;z-index:5;margin-top:8px;min-height:0;text-align:center;}
+
+  /* Palette library: two cards per row with the colors doing most of the talking. */
+  .palettes-header{margin:8px 0 12px;align-items:flex-end;flex-wrap:nowrap;}
+  .palettes-header .hint{display:none;}.palettes-header .primary-btn{white-space:nowrap;}
+  .new-palette-form{max-width:none;margin:10px 0 12px;}
+  .palettes-list{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px;}
+  .palette-card{min-width:0;padding:10px;border-radius:12px;}
+  .palette-card:hover{transform:none;}.palette-name{font-size:12.5px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .palette-count{font-size:9.5px;}.palette-preview{height:42px;margin-top:10px;border-radius:7px;}
+  .icon-btn{padding:2px 3px;font-size:12px;}.palette-menu{top:24px;right:-2px;}
+
+  /* Palette detail stays visual and hides repeated recipe copy from every card. */
+  .palette-detail{margin-top:8px;}.palette-detail-top{align-items:center;margin-bottom:13px;}
+  .palette-detail-title-row{gap:7px;}.palette-detail-title{font-size:20px;}.palette-back{font-size:20px;}
+  .palette-photo-layout{gap:10px;margin-bottom:12px;}.palette-photo-wrap{border-radius:10px;}
+  .palette-sidebar-column{gap:9px;}.pointer-recipe,.palette-sidebar-overview{padding:13px;border-radius:10px;}
+  .pointer-recipe{min-height:0;}.pointer-recipe-empty{font-size:11.5px;}
+  .sidebar-section+.sidebar-section{margin-top:13px;padding-top:12px;}.sidebar-heading{font-size:12px;margin-bottom:8px;}
+  .overview-colors{gap:6px;}.overview-color{padding:5px 8px 5px 5px;font-size:10.5px;}.overview-dot{width:16px;height:16px;}
+  .needed-paints{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;}.needed-paint{font-size:10.5px;min-width:0;}
+  .palette-detail-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  .detail-color-swatch{height:48px;}.detail-color-info{padding:7px;}.detail-color-recipe{display:none;}.detail-delete{width:23px;height:23px;right:5px;top:5px;}
+  .empty-state{padding:28px 16px;margin-top:10px;}
+
+  .toast{bottom:calc(86px + env(safe-area-inset-bottom));max-width:calc(100vw - 32px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+}
+
+@media (max-width:370px){
+  .paints-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .palette-detail-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+
+/* ===== profile ===== */
+.profile-btn{width:38px;height:38px;border-radius:50%;border:1px solid #42423E;background:#242522;color:#171816;padding:0;display:grid;place-items:center;overflow:hidden;cursor:pointer;transition:border-color .15s ease,transform .15s ease;}
+.profile-btn:hover{border-color:#A8D8F0;transform:translateY(-1px);}
+.profile-btn-image{width:100%;height:100%;object-fit:cover;display:block;}
+.profile-btn-initial{width:100%;height:100%;display:grid;place-items:center;background:#A8D8F0;font-size:14px;font-weight:800;text-transform:uppercase;}
+.profile-modal{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;padding:20px;}
+.profile-backdrop{position:absolute;inset:0;border:0;background:rgba(8,9,8,.72);backdrop-filter:blur(7px);cursor:default;}
+.profile-sheet{position:relative;z-index:1;width:min(440px,100%);max-height:calc(100vh - 40px);overflow:auto;background:#20211F;border:1px solid #393936;border-radius:20px;padding:24px;box-shadow:0 28px 80px rgba(0,0,0,.55);}
+.profile-sheet-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:22px;}
+.profile-sheet-head h2{margin:2px 0 0;font-size:27px;}
+.profile-kicker{font-size:10px;font-weight:700;letter-spacing:.13em;color:#8F8B84;}
+.profile-close{border:0;background:#2A2B28;color:#CFC9C0;width:34px;height:34px;border-radius:50%;font-size:22px;line-height:1;cursor:pointer;}
+.profile-close:hover{background:#343531;color:#fff;}
+.profile-avatar-row{display:flex;align-items:center;gap:16px;padding-bottom:20px;border-bottom:1px solid #343431;margin-bottom:18px;}
+.profile-avatar-wrap{width:76px;height:76px;border-radius:50%;overflow:hidden;background:#A8D8F0;display:grid;place-items:center;flex:0 0 auto;border:2px solid #4A4A46;}
+.profile-avatar-image{width:100%;height:100%;object-fit:cover;display:block;}
+.profile-avatar-initial{font-size:27px;font-weight:800;color:#171816;text-transform:uppercase;}
+.profile-photo-label{display:inline-block;cursor:pointer;}
+.profile-photo-hint{font-size:10px;color:#77746E;margin-top:7px;}
+.profile-form .field-label{margin-top:14px;}
+.profile-form input,.profile-form textarea{width:100%;border:1px solid #3A3A36;border-radius:10px;padding:11px 12px;background:#181917;color:#F4F0E9;font:14px 'Inter',sans-serif;}
+.profile-form textarea{min-height:86px;resize:vertical;line-height:1.45;}
+.profile-form input[readonly]{color:#8F8B84;background:#1B1C1A;cursor:not-allowed;}
+.profile-username-field{display:flex;align-items:center;border:1px solid #3A3A36;border-radius:10px;background:#181917;padding-left:12px;color:#8F8B84;}
+.profile-username-field:focus-within{outline:2px solid #A8D8F0;outline-offset:2px;}
+.profile-username-field input{border:0;background:transparent;padding-left:4px;outline:none!important;}
+.profile-form .primary-btn{margin-top:20px;}
+.profile-signout{width:100%;border:0;background:transparent;color:#F08E8E;padding:13px;margin-top:6px;font:600 13px 'Inter',sans-serif;cursor:pointer;border-radius:10px;}
+.profile-signout:hover{background:rgba(240,142,142,.08);}
+body.profile-open{overflow:hidden;}
+@media(max-width:650px){
+  .account{gap:0}.profile-btn{width:36px;height:36px;}
+  .profile-modal{align-items:flex-end;padding:0;}
+  .profile-sheet{width:100%;max-height:88vh;border-radius:22px 22px 0 0;border-bottom:0;padding:22px 20px calc(22px + env(safe-area-inset-bottom));}
+  .profile-backdrop{background:rgba(8,9,8,.62);}
+}
